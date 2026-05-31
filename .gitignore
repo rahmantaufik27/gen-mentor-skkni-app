@@ -13,3 +13,4 @@ frontend/venv
 backend/venv
 backend/data
 .DS_Store
+backend/db.ini

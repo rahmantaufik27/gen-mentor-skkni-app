@@ -15,6 +15,8 @@ from services.session_manager import QuizSessionManager
 from services.session_storage import SessionStorage
 from controllers.quiz_controller import QuizController
 from routes.quiz_routes import init_quiz_routes
+from routes.auth_routes import init_auth_routes
+# from migrations.001_create_users_table import create_users_table
 
 
 def create_app(config=None):
@@ -45,7 +47,11 @@ def create_app(config=None):
     # Configuration
     app.config.update(
         JSON_SORT_KEYS=False,
-        JSONIFY_PRETTYPRINT_REGULAR=True
+        JSONIFY_PRETTYPRINT_REGULAR=True,
+        SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production"),
+        SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax"
     )
 
     # Enable CORS
@@ -61,24 +67,37 @@ def create_app(config=None):
 
     # Initialize routes
     init_quiz_routes(app, controller)
+    
+    # Initialize authentication
+    print("Initializing authentication system...")
+    # create_users_table()  # Create users table if it doesn't exist
+    init_auth_routes(app)  # Initialize auth routes
 
     # Root endpoint
     @app.route("/", methods=["GET"])
     def root():
         """Root endpoint"""
         return jsonify({
-            "message": "Quiz Backend API",
+            "message": "Gen-Mentor Backend API",
             "version": "1.0.0",
             "endpoints": {
-                "health": "/api/quiz/health",
-                "start_quiz": "POST /api/quiz/start",
-                "get_question": "GET /api/quiz/question/<session_id>/<question_index>",
-                "submit_answer": "POST /api/quiz/submit-answer",
-                "get_progress": "GET /api/quiz/progress/<session_id>",
-                "complete_quiz": "POST /api/quiz/complete/<session_id>",
-                "get_results": "GET /api/quiz/results/<session_id>",
-                "get_all_results": "GET /api/quiz/all-results",
-                "get_results_summary": "GET /api/quiz/results-summary"
+                "auth": {
+                    "register": "POST /api/auth/register",
+                    "login": "POST /api/auth/login",
+                    "logout": "POST /api/auth/logout",
+                    "get_current_user": "GET /api/auth/me"
+                },
+                "quiz": {
+                    "health": "/api/quiz/health",
+                    "start_quiz": "POST /api/quiz/start",
+                    "get_question": "GET /api/quiz/question/<session_id>/<question_index>",
+                    "submit_answer": "POST /api/quiz/submit-answer",
+                    "get_progress": "GET /api/quiz/progress/<session_id>",
+                    "complete_quiz": "POST /api/quiz/complete/<session_id>",
+                    "get_results": "GET /api/quiz/results/<session_id>",
+                    "get_all_results": "GET /api/quiz/all-results",
+                    "get_results_summary": "GET /api/quiz/results-summary"
+                }
             }
         }), 200
 
@@ -98,6 +117,13 @@ def create_app(config=None):
 
 if __name__ == "__main__":
     app = create_app()
-    print("Starting Quiz Backend Server...")
-    print("Server running on http://127.0.0.1:5000")
+    print("\n" + "="*50)
+    print("Starting Gen-Mentor Backend Server...")
+    print("="*50)
+    print("Endpoints available at:")
+    print("  - API Root: http://127.0.0.1:5000")
+    print("  - Register: POST http://127.0.0.1:5000/api/auth/register")
+    print("  - Login: POST http://127.0.0.1:5000/api/auth/login")
+    print("  - Logout: POST http://127.0.0.1:5000/api/auth/logout")
+    print("="*50 + "\n")
     app.run(host="127.0.0.1", port=5000, debug=True)

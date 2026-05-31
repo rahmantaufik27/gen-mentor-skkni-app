@@ -27,9 +27,10 @@ PERSIST_KEYS = [
     "to_add_goal",
     "learned_skills_history",
     "userId",
+    "user_name",
+    "user_email",
     "document_caches",
     "session_learning_times",
-    
 ]
 
 
