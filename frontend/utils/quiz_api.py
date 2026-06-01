@@ -16,12 +16,19 @@ def start_quiz() -> dict:
     """
     try:
         url = f"{backend_endpoint}api/quiz/start"
-        response = httpx.post(url, timeout=30)
+        user_id = st.session_state.get("userId")
+        if not user_id:
+            return {"success": False, "error": "User not authenticated"}
+        
+        data = {"user_id": user_id}
+        response = httpx.post(url, json=data, timeout=30)
         
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 400:
+            return response.json()
         else:
-            return {"success": False, "error": f"Status code: {response.status_code}"}
+            return {"success": False, "error": f"Server error: {response.status_code}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
 
@@ -63,10 +70,12 @@ def submit_answer(session_id: str, question_id: str, choice_id: str) -> dict:
     """
     try:
         url = f"{backend_endpoint}api/quiz/submit-answer"
+        user_id = st.session_state.get("userId")
         data = {
             "session_id": session_id,
             "question_id": question_id,
-            "choice_id": choice_id
+            "choice_id": choice_id,
+            "user_id": user_id
         }
         response = httpx.post(url, json=data, timeout=30)
         

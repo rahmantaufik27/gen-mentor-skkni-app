@@ -23,15 +23,18 @@ class QuizController:
         self.session_manager = session_manager
         self.storage = storage
 
-    def start_quiz(self) -> dict:
+    def start_quiz(self, user_id: str = None) -> dict:
         """
         Start a new quiz session
+        
+        Args:
+            user_id: ID of the user starting the quiz
         
         Returns:
             Dictionary with session info and first question
         """
         try:
-            session = self.session_manager.create_session()
+            session = self.session_manager.create_session(user_id)
 
             # Get first question
             first_question = self.session_manager.get_question_for_session(

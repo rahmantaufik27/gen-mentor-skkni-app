@@ -35,6 +35,8 @@ class Question:
     difficulty: str
     choices: List[Choice]
     explanation: str
+    unit: str = ""  # e.g., "J.620100.005.02"
+    bloom_level: str = ""  # e.g., "C3"
     answer_type: str = AnswerType.MULTIPLE_CHOICE.value
 
     def to_dict(self) -> Dict[str, Any]:
@@ -45,6 +47,8 @@ class Question:
             "difficulty": self.difficulty,
             "choices": [c.to_dict() for c in self.choices],
             "explanation": self.explanation,
+            "unit": self.unit,
+            "bloom_level": self.bloom_level,
             "answer_type": self.answer_type,
         }
 

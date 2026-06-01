@@ -1,6 +1,38 @@
 {
+  "backend_endpoint": "http://127.0.0.1:5000/",
+  "available_models": [
+    "OpenAI/GPT-4o"
+  ],
+  "if_complete_onboarding": false,
+  "sample_number": 2,
   "logged_in": true,
-  "userId": "74928602-ebcf-4b5f-a73e-144bfa7ac312",
+  "show_chatbot": true,
+  "llm_type": "OpenAI/GPT-4o",
+  "tutor_messages": [],
+  "goals": [],
+  "learner_information": "",
+  "learner_information_pdf": "",
+  "learner_information_text": "",
+  "learner_occupation": "",
+  "if_refining_learning_goal": false,
+  "if_rescheduling_learning_path": false,
+  "if_updating_learner_profile": false,
+  "selected_goal_id": 0,
+  "selected_session_id": 0,
+  "selected_point_id": 0,
+  "to_add_goal": {
+    "learning_goal": "",
+    "skill_gaps": [],
+    "learner_profile": {},
+    "learning_path": [],
+    "is_completed": false,
+    "is_deleted": false,
+    "id": 0
+  },
+  "learned_skills_history": {},
+  "userId": "a6fc3a34-b519-47c5-ba62-0e99f9a2dd6a",
   "user_name": "Rahman Taufik",
-  "user_email": "rahmantaufik27@gmail.com"
+  "user_email": "rt@gmail.com",
+  "document_caches": {},
+  "session_learning_times": {}
 }

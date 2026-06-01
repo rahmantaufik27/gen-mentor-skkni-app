@@ -1,5 +1,10 @@
 """
 Quiz Page Component for Streamlit
+
+Route Protection:
+- Requires authentication (redirects to login if not authenticated)
+- Only accessible to authenticated users
+- Displays personalized quiz assessment for learners
 """
 
 import streamlit as st
@@ -9,6 +14,7 @@ from utils.quiz_api import (
 )
 from datetime import datetime
 import json
+# from utils.auth_guard import require_authentication
 
 
 def initialize_quiz_state():
@@ -27,7 +33,7 @@ def initialize_quiz_state():
 
 def render_quiz_page():
     """Render the main quiz page"""
-    st.set_page_config(page_title="Quiz - GenMentor", page_icon="📝", layout="wide")
+    # NOTE: st.set_page_config() is called by main.py, not here
     
     initialize_quiz_state()
     
@@ -124,7 +130,7 @@ def render_quiz_progress():
     
     # Display question
     st.subheader(f"Question {question_index + 1} of {total}")
-    st.write(f"**unit:** {question_data.get('unit')} | **Difficulty:** {question_data.get('difficulty').capitalize()}")
+    st.write(f"**Unit:** {question_data.get('unit')} | **Bloom Level:** {question_data.get('bloom_level')}")
     st.divider()
     
     st.write(f"### {question_data.get('question')}")
@@ -143,9 +149,8 @@ def render_quiz_progress():
     if selected_answer:
         choice_letter = selected_answer.split(".")[0]
         choice_index = ord(choice_letter) - ord("A")
-        # selected_choice_id = options[choice_index].get("id")
-        # selected_choice_text = options[choice_index].get("text")
-        selected_choice_id = options[choice_index]
+        # Use letter ID (A, B, C, D) for consistency
+        selected_choice_id = chr(65 + choice_index)  # Convert to A, B, C, D
         
         st.divider()
         
@@ -360,5 +365,8 @@ def show_all_results():
         st.error(f"Failed to load results: {results_result.get('error')}")
 
 
-if __name__ == "__main__":
-    render_quiz_page()
+# ============================================================================
+# EXECUTE QUIZ PAGE
+# ============================================================================
+# Call render_quiz_page directly (this executes when page is imported/exec'd)
+render_quiz_page()

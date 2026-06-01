@@ -21,7 +21,14 @@ def init_quiz_routes(app, controller: QuizController):
     @quiz_bp.route("/start", methods=["POST"])
     def start_quiz():
         """Start a new quiz session"""
-        result = controller.start_quiz()
+        # Get user_id from request body
+        data = request.get_json() or {}
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID required"}), 400
+        
+        result = controller.start_quiz(user_id)
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 
@@ -35,10 +42,14 @@ def init_quiz_routes(app, controller: QuizController):
     @quiz_bp.route("/submit-answer", methods=["POST"])
     def submit_answer():
         """Submit an answer"""
-        data = request.get_json()
+        data = request.get_json() or {}
         session_id = data.get("session_id")
         question_id = data.get("question_id")
         choice_id = data.get("choice_id")
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID required"}), 400
 
         result = controller.submit_answer(session_id, question_id, choice_id)
         status_code = 200 if result.get("success") else 400

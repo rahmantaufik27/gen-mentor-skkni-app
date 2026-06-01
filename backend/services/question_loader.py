@@ -67,11 +67,14 @@ class QuestionLoader:
                 )
                 choices.append(choice)
             
-            # Extract category from unit
-            category = q_data.get("unit", "General").split(".")[-1] if q_data.get("unit") else "General"
+            # Extract category from unit (use last segment for category)
+            unit = q_data.get("unit", "General")  # Keep original unit
+            category = unit.split(".")[-1] if unit else "General"
+            
+            # Get bloom level from JSON
+            bloom = str(q_data.get("bloom_level", "C2")).upper()
             
             # Map bloom level to difficulty
-            bloom = str(q_data.get("bloom_level", "C2")).upper()
             if bloom.startswith("C1") or bloom.startswith("C2"):
                 difficulty = "easy"
             elif bloom.startswith("C3") or bloom.startswith("C4"):
@@ -86,6 +89,8 @@ class QuestionLoader:
                 difficulty=difficulty,
                 choices=choices,
                 explanation=q_data.get("explanation", ""),
+                unit=unit,  # Preserve original unit
+                bloom_level=bloom,  # Preserve bloom level
                 answer_type=AnswerType.MULTIPLE_CHOICE.value
             )
             questions.append(question)

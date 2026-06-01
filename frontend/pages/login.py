@@ -9,7 +9,31 @@ from utils.state import load_persistent_state, save_persistent_state
 if "login_error" not in st.session_state:
     st.session_state.login_error = None
 
-st.set_page_config(page_title="Login - Gen-Mentor", page_icon="🔐", layout="centered")
+st.set_page_config(page_title="Login - Gen-Mentor", page_icon="🔐", layout="centered", initial_sidebar_state="collapsed")
+
+# ============================================================================
+# HIDE STREAMLIT'S AUTOMATIC PAGE SIDEBAR (with CSS)
+# ============================================================================
+hide_sidebar = """
+<style>
+    /* Hide the automatic page sidebar completely */
+    [data-testid="collapsedControl"] {
+        display: none !important;
+    }
+    [data-testid="baseButton-header-close"] {
+        display: none !important;
+    }
+    ul[data-testid="stSidebarNavigation"] {
+        display: none !important;
+    }
+    /* Hide the sidebar entirely */
+    section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+</style>
+"""
+st.markdown(hide_sidebar, unsafe_allow_html=True)
+
 # st.logo("./assets/avatar.png")
 
 # Custom CSS
@@ -125,20 +149,19 @@ with st.form("login_form"):
                 save_persistent_state()
                 
                 st.success(message)
-                # Redirect to main app or dashboard
-                import time
-                time.sleep(1)
-                st.switch_page("pages/learner_profile.py")
+                # Redirect to main app
+                # st.rerun()
+                st.switch_page("main.py")
             else:
                 st.session_state.login_error = message
                 st.rerun()
 
-# Don't have an account?
-st.divider()
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    if st.button("Create Account", use_container_width=True):
-        st.switch_page("pages/register.py")
+# Don't have an account? - Registration currently disabled
+# st.divider()
+# col1, col2, col3 = st.columns([1, 1, 1])
+# with col2:
+#     if st.button("Create Account", use_container_width=True):
+#         st.switch_page("pages/register.py")
 
 # Forgot password
 st.markdown("---")

@@ -1,149 +1,178 @@
-import math
+"""
+Learner Profile Page - Main Hub with Navigation
+
+This is the main application hub after login.
+It provides navigation to:
+- Quiz page
+- Learning Path page
+- Account/Profile information
+- Logout functionality
+
+NOTE: main.py handles authentication check and st.set_page_config()
+This code is exec'd by main.py, so don't duplicate those calls.
+"""
+
 import streamlit as st
-from utils.request_api import create_learner_profile, update_learner_profile
-from components.skill_info import render_skill_info
-from components.navigation import render_navigation
-from utils.pdf import extract_text_from_pdf
-from streamlit_extras.tags import tagger_component 
 from utils.state import save_persistent_state
+from utils.auth_guard import get_current_user
 
+# ============================================================================
+# CUSTOM NAVIGATION MENU (at top)
+# ============================================================================
+st.markdown("---")
 
-def render_learner_profile():
-    # Title and introduction
-    goal = st.session_state["goals"][st.session_state["selected_goal_id"]]
+# Navigation tabs
+nav_col1, nav_col2, nav_col3, nav_col4 = st.columns(4)
 
-    st.title("Learner Profile")
-    st.write("An overview of the learner's background, goals, progress, preferences, and behavioral patterns.")
-    if not goal.get("learner_profile"):
-        with st.spinner('Identifying Skill Gap ...'):
-            st.info("Please complete the onboarding process to view the learner profile.")
-    else:
-        try:
-            render_learner_profile_info(goal)
-        except Exception as e:
-            st.error("An error occurred while rendering the learner profile.")
-            # re generate the learner profile
-            with st.spinner("Re-prepare your profile ..."):
-                learner_profile = create_learner_profile(goal["learning_goal"], st.session_state["learner_information"], goal["skill_gaps"], st.session_state["llm_type"])
-            goal["learner_profile"] = learner_profile
-            try:
-                save_persistent_state()
-            except Exception:
-                pass
-            st.rerun()
+with nav_col1:
+    if st.button("📝 Quiz", use_container_width=True, key="nav_quiz"):
+        st.session_state.current_page = "quiz"
+        st.rerun()
 
-def render_learner_profile_info(goal):
+with nav_col2:
+    if st.button("🎓 Learning Path", use_container_width=True, key="nav_learning"):
+        st.session_state.current_page = "learning_path"
+        st.rerun()
+
+with nav_col3:
+    if st.button("👤 My Profile", use_container_width=True, key="nav_profile"):
+        st.session_state.current_page = "profile"
+        st.rerun()
+
+with nav_col4:
+    if st.button("🚪 Logout", use_container_width=True, key="nav_logout"):
+        st.session_state.logged_in = False
+        st.session_state.userId = None
+        st.session_state.user_name = None
+        st.session_state.user_email = None
+        save_persistent_state()
+        st.success("✅ Logged out successfully!")
+        st.rerun()
+
+st.markdown("---")
+
+# ============================================================================
+# INITIALIZE PAGE SELECTION
+# ============================================================================
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "profile"
+
+# ============================================================================
+# RENDER SELECTED PAGE
+# ============================================================================
+
+if st.session_state.current_page == "quiz":
+    # ====================================================================
+    # QUIZ PAGE
+    # ====================================================================
+    try:
+        with open("pages/quiz.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Quiz page: {str(e)}")
+
+elif st.session_state.current_page == "learning_path":
+    # ====================================================================
+    # LEARNING PATH PAGE
+    # ====================================================================
+    st.title("🎓 Learning Path")
+    st.divider()
+    
     st.markdown("""
-        <style>
-        .section {
-            background-color: #f8f9fa;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 8px;
-        }
-        .progress-indicator {
-            color: #28a745;
-            font-weight: bold;
-        }
-        .skill-in-progress {
-            color: #ffc107;
-        }
-        .skill-required {
-            color: #dc3545;
-        }
-        </style>
-    """, unsafe_allow_html=True)
-    learner_profile = goal["learner_profile"]
+    ### Learning Materials & Resources
+    
+    This section will provide:
+    - Learning materials organized by unit
+    - Video tutorials
+    - Reading materials
+    - Practice exercises
+    - Progress tracking
+    
+    Start by taking the Quiz to identify your learning gaps.
+    """)
+    
     with st.container(border=True):
-        # Learner Information
-        st.markdown("#### 👤 Learner Information")
-        st.markdown(f"<div class='section'>{learner_profile['learner_information']}</div>", unsafe_allow_html=True)
+        st.markdown("#### 📚 Available Units")
+        st.info("Complete quizzes first to get personalized learning recommendations.")
 
-        # Learning Goal
-        st.markdown("#### 🎯 Learning Goal")
-        st.markdown(f"<div class='section'>{learner_profile['learning_goal']}</div>", unsafe_allow_html=True)
-
+else:  # profile (default)
+    # ====================================================================
+    # LEARNER PROFILE PAGE
+    # ====================================================================
+    st.title("👤 My Profile")
+    st.divider()
+    
+    # Get current user information
+    current_user = get_current_user()
+    
+    # Display user information section
     with st.container(border=True):
-        render_cognitive_status(goal)
-    with st.container(border=True):
-        render_learning_preferences(goal)
-    with st.container(border=True):
-        render_behavioral_patterns(goal)
-
-    render_additional_info_form(goal)
-
-
-def render_cognitive_status(goal):
-    learner_profile = goal["learner_profile"]
-    # Cognitive Status
-    st.markdown("#### 🧠 Cognitive Status")
-    st.write("**Overall Progress:**")
-    st.progress(learner_profile["cognitive_status"]["overall_progress"])
-    st.markdown(f"<p class='progress-indicator'>{learner_profile['cognitive_status']['overall_progress']}% completed</p>", unsafe_allow_html=True)
-    render_skill_info(learner_profile)
-
-def render_learning_preferences(goal):
-    learner_profile = goal["learner_profile"]
-    st.markdown("#### 📚 Learning Preferences")
-    st.write(f"**Content Style:** {learner_profile['learning_preferences']['content_style']}")
-    st.write(f"**Preferred Activity Type:** {learner_profile['learning_preferences']['activity_type']}")
-    st.write(f"**Additional Notes:**")
-    st.info(learner_profile['learning_preferences']['additional_notes'])
-
-def render_behavioral_patterns(goal):
-    learner_profile = goal["learner_profile"]
-    st.markdown("#### 📊 Behavioral Patterns")
-    st.write(f"**System Usage Frequency:**")
-    st.info(learner_profile['behavioral_patterns']['system_usage_frequency'])
-    st.write(f"**Session Duration and Engagement:**")
-    st.info(learner_profile['behavioral_patterns']['session_duration_engagement'])
-    st.write(f"**Motivational Triggers:**")
-    st.info(learner_profile['behavioral_patterns']['motivational_triggers'])
-    st.write(f"**Additional Notes:**")
-    st.info(learner_profile['behavioral_patterns']['additional_notes'])
-
-
-def render_additional_info_form(goal):
-    with st.form(key="additional_info_form"):
-        st.markdown("#### Value Your Feedback")
-        st.info("Help us improve your learning experience by providing your feedback below.")
-        st.write("How much do you agree with the current profile?")
-        agreement_star = st.feedback("stars", key="agreement_star")
-        st.write("Do you have any suggestions or corrections?")
-        suggestions = st.text_area("Provide your suggestions here.", label_visibility="collapsed")
-        st.write("Do you have any additional information to add?")
-        additional_info = st.text_area("Provide any additional information or feedback here.", label_visibility="collapsed")
-        pdf_file = st.file_uploader("Upload a PDF with additional information (e.g., resume)", type="pdf")
-        if pdf_file is not None:
-            with st.spinner("Extracting text from PDF..."):
-                additional_info_pdf = extract_text_from_pdf(pdf_file)
-                st.toast("✅ PDF uploaded successfully.")
-        else:
-            additional_info_pdf = ""
-        st.session_state["additional_info"] = {
-            "agreement_star": agreement_star,
-            "suggestions": suggestions,
-            "additional_info": additional_info + additional_info_pdf
-        }
+        st.markdown("#### Account Information")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write(f"**Name:** {current_user['user_name']}")
+        with col2:
+            st.write(f"**Email:** {current_user['user_email']}")
+    
+    st.divider()
+    
+    # Display learning statistics
+    st.markdown("#### 📊 Learning Statistics")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(
+            label="Quizzes Completed",
+            value="0",
+            help="Number of quizzes you have completed"
+        )
+    
+    with col2:
+        st.metric(
+            label="Average Score",
+            value="0%",
+            help="Average score across all quizzes"
+        )
+    
+    with col3:
+        st.metric(
+            label="Total Questions",
+            value="0",
+            help="Total questions answered"
+        )
+    
+    st.divider()
+    
+    # Display learning information
+    st.markdown("#### 📚 Learning Information")
+    st.info("Complete quizzes to track your progress and see detailed statistics here.")
+    
+    st.divider()
+    
+    # Preferences
+    st.markdown("#### ⚙️ Preferences")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        theme = st.selectbox(
+            "Theme",
+            ["Light", "Dark", "Auto"],
+            help="Choose your preferred theme"
+        )
+    
+    with col2:
+        language = st.selectbox(
+            "Language",
+            ["English", "Indonesian"],
+            help="Choose your preferred language"
+        )
+    
+    # Save preferences
+    if st.button("Save Preferences", type="primary"):
+        st.success("Preferences saved successfully!")
         try:
             save_persistent_state()
         except Exception:
             pass
-        submit_button = st.form_submit_button("Update Profile", on_click=update_learner_profile_with_additional_info, 
-                                              kwargs={"goal": goal, "additional_info": additional_info, }, type="primary")
-        
-def update_learner_profile_with_additional_info(goal, additional_info):
-    additional_info = st.session_state["additional_info"]
-    new_learner_profile = update_learner_profile(goal["learner_profile"], additional_info)
-    if new_learner_profile is not None:
-        goal["learner_profile"] = new_learner_profile
-        try:
-            save_persistent_state()
-        except Exception:
-            pass
-        st.toast("🎉 Successfully updated your profile!")
-    else:
-        st.toast("❌ Failed to update your profile. Please try again.")
-
-
-render_learner_profile()

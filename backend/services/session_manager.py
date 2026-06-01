@@ -25,9 +25,12 @@ class QuizSessionManager:
         self.question_loader = question_loader
         self.sessions: dict = {}  # In-memory session storage
 
-    def create_session(self) -> QuizSession:
+    def create_session(self, user_id: str = None) -> QuizSession:
         """
         Create a new quiz session with randomized questions
+        
+        Args:
+            user_id: ID of the user creating the session
         
         Returns:
             QuizSession object
