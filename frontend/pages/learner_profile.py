@@ -25,22 +25,22 @@ st.markdown("---")
 nav_col1, nav_col2, nav_col3, nav_col4 = st.columns(4)
 
 with nav_col1:
-    if st.button("📝 Quiz", use_container_width=True, key="nav_quiz"):
-        st.session_state.current_page = "quiz"
+    if st.button(":material/account_circle: My Profile", use_container_width=True, key="nav_profile"):
+        st.session_state.current_page = "profile"
         st.rerun()
 
 with nav_col2:
-    if st.button("🎓 Learning Path", use_container_width=True, key="nav_learning"):
+    if st.button(":material/school: Learning Path", use_container_width=True, key="nav_learning"):
         st.session_state.current_page = "learning_path"
         st.rerun()
 
 with nav_col3:
-    if st.button("👤 My Profile", use_container_width=True, key="nav_profile"):
-        st.session_state.current_page = "profile"
+    if st.button(":material/assignment: Quiz", use_container_width=True, key="nav_quiz"):
+        st.session_state.current_page = "quiz"
         st.rerun()
 
 with nav_col4:
-    if st.button("🚪 Logout", use_container_width=True, key="nav_logout"):
+    if st.button(":material/logout: Logout", use_container_width=True, key="nav_logout"):
         st.session_state.logged_in = False
         st.session_state.userId = None
         st.session_state.user_name = None

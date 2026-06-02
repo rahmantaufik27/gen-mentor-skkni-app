@@ -10,42 +10,43 @@ initialize_session_state()
 # PAGE CONFIG - Called only once, with all settings
 # ============================================================================
 st.set_page_config(
-    page_title="GenMentor",
-    page_icon="🧠",
+    page_title="GenQ-SKKNI",
+    page_icon=":books:",
     layout="wide",
     initial_sidebar_state="collapsed"  # Hide default Streamlit sidebar
 )
+st.set_option("client.showSidebarNavigation", False)
 
 # ============================================================================
 # HIDE STREAMLIT'S AUTOMATIC PAGE SIDEBAR (with CSS)
 # ============================================================================
-hide_sidebar = """
-<style>
-    /* Hide the automatic page sidebar completely */
-    [data-testid="collapsedControl"] {
-        display: none !important;
-    }
-    [data-testid="baseButton-header-close"] {
-        display: none !important;
-    }
-    ul[data-testid="stSidebarNavigation"] {
-        display: none !important;
-    }
-    /* Hide the sidebar entirely */
-    section[data-testid="stSidebar"] {
-        display: none !important;
-    }
-</style>
-"""
-st.markdown(hide_sidebar, unsafe_allow_html=True)
+# hide_sidebar = """
+# <style>
+#     /* Hide the automatic page sidebar completely */
+#     [data-testid="collapsedControl"] {
+#         display: none !important;
+#     }
+#     [data-testid="baseButton-header-close"] {
+#         display: none !important;
+#     }
+#     ul[data-testid="stSidebarNavigation"] {
+#         display: none !important;
+#     }
+#     /* Hide the sidebar entirely */
+#     section[data-testid="stSidebar"] {
+#         display: none !important;
+#     }
+# </style>
+# """
+# st.markdown(hide_sidebar, unsafe_allow_html=True)
 
 # ============================================================================
 # LOAD ASSETS & CSS (with error handling)
 # ============================================================================
-try:
-    st.logo("./assets/avatar.png")
-except Exception as e:
-    pass
+# try:
+#     st.logo("./assets/avatar.png")
+# except Exception as e:
+#     pass
 
 try:
     with open('./assets/css/main.css', 'r') as f:

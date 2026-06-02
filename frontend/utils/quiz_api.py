@@ -56,26 +56,24 @@ def get_question(session_id: str, question_index: int) -> dict:
         return {"success": False, "error": str(e)}
 
 
-def submit_answer(session_id: str, question_id: str, choice_id: str) -> dict:
+def submit_answer(session_id: str, question_index: int, selected_answer: str) -> dict:
     """
     Submit an answer for a question
     
     Args:
         session_id: ID of the quiz session
-        question_id: ID of the question
-        choice_id: ID of the chosen answer
+        question_index: Index of the question (0-based)
+        selected_answer: Selected choice ID (A, B, C, or D)
         
     Returns:
         Dictionary with result
     """
     try:
         url = f"{backend_endpoint}api/quiz/submit-answer"
-        user_id = st.session_state.get("userId")
         data = {
             "session_id": session_id,
-            "question_id": question_id,
-            "choice_id": choice_id,
-            "user_id": user_id
+            "question_index": question_index,
+            "selected_answer": selected_answer
         }
         response = httpx.post(url, json=data, timeout=30)
         
@@ -111,17 +109,19 @@ def get_progress(session_id: str) -> dict:
 
 def complete_quiz(session_id: str) -> dict:
     """
-    Complete the quiz
+    Complete the quiz and save results
     
     Args:
         session_id: ID of the quiz session
         
     Returns:
-        Dictionary with results
+        Dictionary with results and mastery information
     """
     try:
         url = f"{backend_endpoint}api/quiz/complete/{session_id}"
-        response = httpx.post(url, timeout=30)
+        user_id = st.session_state.get("userId")
+        data = {"user_id": user_id}
+        response = httpx.post(url, json=data, timeout=30)
         
         if response.status_code == 200:
             return response.json()
@@ -131,57 +131,21 @@ def complete_quiz(session_id: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
-def get_results(session_id: str) -> dict:
+def get_quiz_history(limit: int = 10) -> dict:
     """
-    Get quiz results
+    Get user quiz history
     
     Args:
-        session_id: ID of the quiz session
+        limit: Number of recent attempts to retrieve
         
     Returns:
-        Dictionary with results
+        Dictionary with quiz history
     """
     try:
-        url = f"{backend_endpoint}api/quiz/results/{session_id}"
-        response = httpx.get(url, timeout=30)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return {"success": False, "error": f"Status code: {response.status_code}"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def get_all_results() -> dict:
-    """
-    Get all quiz results
-    
-    Returns:
-        Dictionary with all results
-    """
-    try:
-        url = f"{backend_endpoint}api/quiz/all-results"
-        response = httpx.get(url, timeout=30)
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            return {"success": False, "error": f"Status code: {response.status_code}"}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-
-def get_results_summary() -> dict:
-    """
-    Get quiz results summary
-    
-    Returns:
-        Dictionary with summary statistics
-    """
-    try:
-        url = f"{backend_endpoint}api/quiz/results-summary"
-        response = httpx.get(url, timeout=30)
+        url = f"{backend_endpoint}api/quiz/history"
+        user_id = st.session_state.get("userId")
+        params = {"user_id": user_id, "limit": limit}
+        response = httpx.get(url, params=params, timeout=30)
         
         if response.status_code == 200:
             return response.json()

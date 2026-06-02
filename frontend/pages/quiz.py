@@ -9,8 +9,8 @@ Route Protection:
 
 import streamlit as st
 from utils.quiz_api import (
-    start_quiz, get_question, submit_answer, get_progress,
-    complete_quiz, get_results, get_all_results, get_results_summary
+    start_quiz, get_question, submit_answer,
+    complete_quiz, get_quiz_history
 )
 from datetime import datetime
 import json
@@ -105,52 +105,58 @@ def render_quiz_progress():
     session_id = st.session_state.quiz_session_id
     question_index = st.session_state.quiz_current_question
     
-    # Get progress
-    progress_result = get_progress(session_id)
-    if not progress_result.get("success"):
-        st.error("Failed to get quiz progress")
-        return
-    
-    progress = progress_result.get("progress", {})
-    total = progress.get("total_questions", 30)
-    answered = progress.get("answered_questions", 0)
-    
-    # Progress bar
-    st.progress(answered / total, text=f"Progress: {answered}/{total} questions")
-    
-    st.divider()
-    
     # Get current question
     question_result = get_question(session_id, question_index)
     if not question_result.get("success"):
         st.error("Failed to load question")
         return
     
-    question_data = question_result.get("question", {})
+    # Question data is at root level of response (not nested under "question" key)
+    total_questions = question_result.get("total_questions", 36)
+    question_number = question_result.get("question_number", question_index + 1)
+    question_text = question_result.get("question_text", "")
+    unit = question_result.get("unit", "")
+    bloom_level = question_result.get("bloom_level", "")
+    choices = question_result.get("choices", [])
     
-    # Display question
-    st.subheader(f"Question {question_index + 1} of {total}")
-    st.write(f"**Unit:** {question_data.get('unit')} | **Bloom Level:** {question_data.get('bloom_level')}")
+    # Progress bar
+    progress_percentage = question_number / total_questions
+    st.progress(progress_percentage, text=f"Progress: {question_number}/{total_questions} questions")
+    
     st.divider()
     
-    st.write(f"### {question_data.get('question')}")
+    # Display question
+    st.subheader(f"Question {question_number} of {total_questions}")
+    
+    # Unit and Bloom info
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"**Unit:** {unit}")
+    with col2:
+        st.write(f"**Bloom Level:** {bloom_level}")
+    
+    st.divider()
+    
+    st.write(f"### {question_text}")
     
     # Answer options
-    options = question_data.get("options", [])
+    if not choices:
+        st.warning("No answer choices available")
+        return
+    
+    # Create choice text with letters
+    choice_options = [f"{choice.get('id')}. {choice.get('text')}" for choice in choices]
     
     # Store selected answer
-    selected_answer = st.radio(
+    selected_text = st.radio(
         label="Select your answer:",
-        options=[f"{chr(65 + i)}. {choice}" for i, choice in enumerate(options)],
-        key=f"question_{question_data.get('id')}"
+        options=choice_options,
+        key=f"question_{question_number}"
     )
     
     # Get choice ID from selection
-    if selected_answer:
-        choice_letter = selected_answer.split(".")[0]
-        choice_index = ord(choice_letter) - ord("A")
-        # Use letter ID (A, B, C, D) for consistency
-        selected_choice_id = chr(65 + choice_index)  # Convert to A, B, C, D
+    if selected_text:
+        selected_choice_id = selected_text.split(".")[0]  # Extract letter (A, B, C, D)
         
         st.divider()
         
@@ -158,20 +164,24 @@ def render_quiz_progress():
         
         # Submit answer
         with col1:
-            if st.button("✓ Submit Answer", use_container_width=True, type="primary"):
+            if st.button("Submit Answer", use_container_width=True, type="primary"):
                 submit_result = submit_answer(
                     session_id,
-                    question_data.get("id"),
+                    question_index,
                     selected_choice_id
                 )
                 
                 if submit_result.get("success"):
-                    is_completed = submit_result.get("is_completed", False)
+                    progress_data = submit_result.get("progress", {})
                     
-                    if is_completed:
-                        # Quiz finished
-                        st.session_state.quiz_completed = True
-                        st.rerun()
+                    # Check if quiz is completed
+                    if progress_data.get("answered") >= total_questions:
+                        # Quiz finished - auto-complete
+                        complete_result = complete_quiz(session_id)
+                        if complete_result.get("success"):
+                            st.session_state.quiz_completed = True
+                            st.session_state.quiz_result = complete_result
+                            st.rerun()
                     else:
                         # Move to next question
                         st.session_state.quiz_current_question += 1
@@ -179,14 +189,14 @@ def render_quiz_progress():
                 else:
                     st.error(f"Failed to submit answer: {submit_result.get('error')}")
         
-        # View summary
+        # View progress
         with col2:
-            if st.button("📊 View Summary", use_container_width=True):
-                show_quiz_summary(session_id)
+            if st.button("View Progress", use_container_width=True):
+                st.info(f"Answered: {question_number} / {total_questions}")
         
         # Quit quiz
         with col3:
-            if st.button("🚪 Exit Quiz", use_container_width=True):
+            if st.button("Exit Quiz", use_container_width=True):
                 st.session_state.quiz_started = False
                 st.session_state.quiz_current_question = 0
                 st.session_state.quiz_session_id = None
@@ -194,16 +204,8 @@ def render_quiz_progress():
 
 
 def render_quiz_results():
-    """Render quiz results"""
-    session_id = st.session_state.quiz_session_id
-    
-    # Get results
-    results_result = get_results(session_id)
-    if not results_result.get("success"):
-        st.error("Failed to load results")
-        return
-    
-    result_data = results_result.get("result", {})
+    """Render quiz results with mastery information"""
+    result_data = st.session_state.quiz_result or {}
     
     # Display results header
     st.subheader("Quiz Complete!")
@@ -212,65 +214,72 @@ def render_quiz_results():
     # Main score display
     col1, col2, col3, col4 = st.columns(4)
     
+    total_questions = result_data.get("total_questions", 0)
+    correct_answers = result_data.get("correct_answers", 0)
+    max_score = result_data.get("max_possible_score", 1)
+    total_score = result_data.get("total_score", 0)
+    
     with col1:
+        score_percentage = (total_score / max_score * 100) if max_score > 0 else 0
         st.metric(
             "Score",
-            f"{result_data.get('score_percentage', 0):.1f}%",
-            delta=f"{result_data.get('correct_answers', 0)}/{result_data.get('total_questions', 30)}"
+            f"{score_percentage:.1f}%",
+            delta=f"{correct_answers}/{total_questions}"
         )
     
     with col2:
-        status = "✅ PASSED" if result_data.get("is_passed") else "❌ FAILED"
+        status = "PASSED" if result_data.get("is_passed") else "FAILED"
         st.metric("Status", status)
     
     with col3:
-        st.metric("Correct", result_data.get("correct_answers", 0))
+        st.metric("Total Points", f"{total_score}")
     
     with col4:
-        st.metric("Wrong", result_data.get("wrong_answers", 0))
+        st.metric("Max Possible", f"{max_score}")
     
     st.divider()
     
     # Pass/Fail determination
     is_passed = result_data.get("is_passed", False)
-    passing_score = 75
     
     if is_passed:
-        st.success(f"🎉 Congratulations! You passed the quiz with {result_data.get('score_percentage', 0):.1f}%")
+        st.success(f"Congratulations! You passed the quiz!")
     else:
-        st.warning(f"⚠️ You did not pass this time. Passing score is {passing_score}%. Your score: {result_data.get('score_percentage', 0):.1f}%")
+        st.warning(f"You did not pass this time. Keep practicing!")
     
     st.divider()
     
-    # Detailed answer review
-    st.subheader("📋 Detailed Answer Review")
+    # Unit Mastery Summary
+    st.subheader("Unit Mastery Summary")
     
-    answers = result_data.get("answers", [])
+    unit_mastery = result_data.get("unit_mastery", {})
+    mastered_units = result_data.get("mastered_units", [])
+    remedial_units = result_data.get("remedial_units", [])
     
-    for idx, answer in enumerate(answers, 1):
-        with st.expander(f"Question {idx}: {answer.get('question', 'Unknown')}"):
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.write(f"**unit:** {answer.get('unit')}")
-            
-            with col2:
-                if answer.get("is_correct"):
-                    st.success("✅ Correct")
-                else:
-                    st.error("❌ Incorrect")
-            
-            st.write(f"**Your Answer:** {answer.get('your_answer')}")
-            st.write(f"**Correct Answer:** {answer.get('correct_answer')}")
-    
-    st.divider()
-    
-    # Meta information
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write(f"**Session ID:** `{result_data.get('session_id')}`")
-    with col2:
-        st.write(f"**Completed At:** {result_data.get('completed_at')}")
+    if unit_mastery:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Mastered Units")
+            if mastered_units:
+                for unit in mastered_units:
+                    unit_data = unit_mastery.get(unit, {})
+                    score = unit_data.get("score", 0)
+                    max_s = unit_data.get("max", 21)
+                    st.success(f"{unit}: {score}/{max_s} points")
+            else:
+                st.info("No units mastered yet")
+        
+        with col2:
+            st.markdown("### Remedial Units (Need Improvement)")
+            if remedial_units:
+                for unit in remedial_units:
+                    unit_data = unit_mastery.get(unit, {})
+                    score = unit_data.get("score", 0)
+                    max_s = unit_data.get("max", 21)
+                    st.warning(f"{unit}: {score}/{max_s} points")
+            else:
+                st.info("All units mastered!")
     
     st.divider()
     
@@ -278,91 +287,98 @@ def render_quiz_results():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("🔄 Take Another Quiz", use_container_width=True, type="primary"):
+        if st.button("Take Another Quiz", use_container_width=True, type="primary"):
             st.session_state.quiz_started = False
             st.session_state.quiz_current_question = 0
             st.session_state.quiz_session_id = None
             st.session_state.quiz_completed = False
+            st.session_state.quiz_result = None
             st.rerun()
     
     with col2:
-        if st.button("📊 View All Results", use_container_width=True):
-            show_all_results()
+        if st.button("View Quiz History", use_container_width=True):
+            show_quiz_history()
     
     with col3:
-        if st.button("⬅️ Go Home", use_container_width=True):
+        if st.button("Go Home", use_container_width=True):
             st.session_state.quiz_started = False
             st.session_state.quiz_current_question = 0
             st.session_state.quiz_session_id = None
             st.session_state.quiz_completed = False
+            st.session_state.quiz_result = None
             st.rerun()
 
 
-def show_quiz_summary(session_id: str):
-    """Show quiz summary modal"""
-    st.info("""
-    ### Quiz Summary
+def show_quiz_history():
+    """Show user's quiz history"""
+    history_result = get_quiz_history(limit=10)
     
-    This summary shows your current progress in the quiz.
-    Continue answering questions to complete the assessment.
-    """)
-    
-    progress_result = get_progress(session_id)
-    if progress_result.get("success"):
-        progress = progress_result.get("progress", {})
-        st.json(progress)
-
-
-def show_all_results():
-    """Show all quiz results"""
-    results_result = get_all_results()
-    
-    if results_result.get("success"):
-        results = results_result.get("results", [])
-        summary = results_result.get("summary", {})
+    if history_result.get("success"):
+        attempts = history_result.get("attempts", [])
         
-        st.subheader("📊 All Quiz Results")
+        st.subheader("Your Quiz History")
         
-        # Summary statistics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("Total Quizzes", summary.get("total_quizzes", 0))
-        
-        with col2:
-            st.metric("Passed", summary.get("passed", 0))
-        
-        with col3:
-            st.metric("Failed", summary.get("failed", 0))
-        
-        with col4:
-            st.metric("Average Score", f"{summary.get('average_score', 0):.1f}%")
-        
-        st.divider()
-        
-        # All results table
-        if results:
-            st.subheader("Recent Quiz Attempts")
-            
-            for result in reversed(results[-10:]):  # Show last 10
-                with st.expander(f"Quiz {result.get('session_id')[:8]}... - {result.get('score_percentage'):.1f}%"):
+        if attempts:
+            for idx, attempt in enumerate(attempts, 1):
+                with st.expander(f"Attempt {idx} - {attempt.get('status')}"):
                     col1, col2, col3 = st.columns(3)
                     
                     with col1:
-                        st.write(f"**Score:** {result.get('score_percentage'):.1f}%")
+                        st.write(f"**Score:** {attempt.get('total_score')} points")
                     
                     with col2:
-                        st.write(f"**Correct:** {result.get('correct_answers')}/{result.get('total_questions')}")
+                        st.write(f"**Correct:** {attempt.get('correct_answers')}/{attempt.get('total_questions')}")
                     
                     with col3:
-                        status = "✅ PASSED" if result.get("is_passed") else "❌ FAILED"
+                        status = attempt.get('status', 'UNKNOWN')
                         st.write(f"**Status:** {status}")
                     
-                    st.write(f"**Completed:** {result.get('completed_at')}")
+                    st.write(f"**Date:** {attempt.get('completed_at')}")
         else:
-            st.info("No quiz results yet.")
+            st.info("No quiz attempts yet")
     else:
-        st.error(f"Failed to load results: {results_result.get('error')}")
+        st.error(f"Failed to load history: {history_result.get('error')}")
+
+
+def show_all_results():
+    """Show all results summary"""
+    history_result = get_quiz_history(limit=100)
+    
+    if history_result.get("success"):
+        attempts = history_result.get("attempts", [])
+        
+        st.subheader("All Quiz Results")
+        
+        if attempts:
+            # Summary stats
+            total_attempts = len(attempts)
+            passed = sum(1 for a in attempts if a.get('status') == 'PASS')
+            failed = total_attempts - passed
+            avg_score = sum(a.get('total_score', 0) for a in attempts) / total_attempts if total_attempts > 0 else 0
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Total Attempts", total_attempts)
+            
+            with col2:
+                st.metric("Passed", passed)
+            
+            with col3:
+                st.metric("Failed", failed)
+            
+            with col4:
+                st.metric("Avg Score", f"{avg_score:.1f}")
+            
+            st.divider()
+            
+            # Show recent attempts
+            st.subheader("Recent Attempts")
+            show_quiz_history()
+        else:
+            st.info("No quiz attempts yet")
+    else:
+        st.error(f"Failed to load results: {history_result.get('error')}")
 
 
 # ============================================================================

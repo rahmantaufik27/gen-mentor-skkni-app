@@ -44,49 +44,39 @@ def init_quiz_routes(app, controller: QuizController):
         """Submit an answer"""
         data = request.get_json() or {}
         session_id = data.get("session_id")
-        question_id = data.get("question_id")
-        choice_id = data.get("choice_id")
-        user_id = data.get("user_id")
+        question_index = data.get("question_index")
+        selected_answer = data.get("selected_answer")
         
-        if not user_id:
-            return jsonify({"success": False, "error": "User ID required"}), 400
+        if not all([session_id, question_index is not None, selected_answer]):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
 
-        result = controller.submit_answer(session_id, question_id, choice_id)
-        status_code = 200 if result.get("success") else 400
-        return jsonify(result), status_code
-
-    @quiz_bp.route("/progress/<session_id>", methods=["GET"])
-    def get_progress(session_id):
-        """Get quiz progress"""
-        result = controller.get_progress(session_id)
+        result = controller.submit_answer(session_id, question_index, selected_answer)
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 
     @quiz_bp.route("/complete/<session_id>", methods=["POST"])
     def complete_quiz(session_id):
-        """Complete quiz and get results"""
-        result = controller.complete_quiz(session_id)
+        """Complete quiz and save results"""
+        data = request.get_json() or {}
+        user_id = data.get("user_id")
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID required"}), 400
+        
+        result = controller.complete_quiz(session_id, user_id)
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 
-    @quiz_bp.route("/results/<session_id>", methods=["GET"])
-    def get_results(session_id):
-        """Get quiz results"""
-        result = controller.get_results(session_id)
-        status_code = 200 if result.get("success") else 400
-        return jsonify(result), status_code
-
-    @quiz_bp.route("/all-results", methods=["GET"])
-    def get_all_results():
-        """Get all quiz results"""
-        result = controller.get_all_results()
-        status_code = 200 if result.get("success") else 400
-        return jsonify(result), status_code
-
-    @quiz_bp.route("/results-summary", methods=["GET"])
-    def get_results_summary():
-        """Get results summary"""
-        result = controller.get_results_summary()
+    @quiz_bp.route("/history", methods=["GET"])
+    def get_quiz_history():
+        """Get user quiz history"""
+        user_id = request.args.get("user_id")
+        limit = request.args.get("limit", 10, type=int)
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID required"}), 400
+        
+        result = controller.get_user_quiz_history(user_id, limit)
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 

@@ -11,12 +11,12 @@ from flask_cors import CORS
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from services.question_loader import QuestionLoader
-from services.session_manager import QuizSessionManager
-from services.session_storage import SessionStorage
+from services.quiz_service import QuizService
 from controllers.quiz_controller import QuizController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
 # from migrations.001_create_users_table import create_users_table
+# from migrations.002_create_quiz_tables import create_quiz_tables
 
 
 def create_app(config=None):
@@ -59,11 +59,10 @@ def create_app(config=None):
 
     # Initialize services
     question_loader = QuestionLoader(data_dir)
-    session_manager = QuizSessionManager(question_loader)
-    storage = SessionStorage(storage_dir)
+    quiz_service = QuizService(question_loader)
 
     # Initialize controller
-    controller = QuizController(question_loader, session_manager, storage)
+    controller = QuizController(quiz_service)
 
     # Initialize routes
     init_quiz_routes(app, controller)
