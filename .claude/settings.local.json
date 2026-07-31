@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m py_compile pages/register.py pages/login.py)",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s -o /tmp/login_page.html -w \"login page HTTP:%{http_code}\\\\n\" \"http://localhost:8501/login\")",
+      "Bash(curl -s -o /tmp/register_page.html -w \"register page HTTP:%{http_code}\\\\n\" \"http://localhost:8501/register\")",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/**)",
+      "Bash(pkill -f \"streamlit run main.py\")",
+      "Bash(pkill -f \"python app.py\")",
+      "Bash(xargs -I{} echo {})",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"\\\\dt\")",
+      "Bash(./venv/bin/pip show *)",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"\\\\d quiz_attempts\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"\\\\d quiz_attempt_details\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"\\\\d user_mastery_level\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"\\\\d users\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"SELECT count\\(*\\) FROM quiz_attempts;\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"SELECT count\\(*\\) FROM quiz_attempt_details;\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"SELECT count\\(*\\) FROM user_mastery_level;\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"SELECT id, user_id, score, passed, started_at, completed_at FROM quiz_attempts ORDER BY completed_at DESC LIMIT 3;\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"SELECT unit_code, unit_score, mastery_status, unit_mastery_level, method FROM user_mastery_level LIMIT 10;\")",
+      "Bash(PGPASSWORD=erte psql -h localhost -U postgres -d genmentorskknidb -c \"SELECT id, started_at, completed_at, total_questions, correct_answers, total_score, pass_fail FROM quiz_attempts LIMIT 1;\")",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\\\\n\" \"http://127.0.0.1:5000/api/quiz/mastery-summary?user_id=TestUser\")",
+      "Bash(curl -s -o /dev/null -w \"learner_profile page route HTTP:%{http_code}\\\\n\" \"http://localhost:8501/learner_profile\")",
+      "Bash(python3 -c \"import components\")"
+    ]
+  }
+}

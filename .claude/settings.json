@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m py_compile utils/quiz_api.py components/mastery_dashboard.py pages/learner_profile.py)",
+      "Bash(python3 -c ' *)"
+    ]
+  }
+}
