@@ -60,9 +60,8 @@ def render_quiz_start():
     with col1:
         st.markdown("""
         #### Quiz Information
-        - **Total Questions:** 30
+        - **Total Questions:** 36
         - **Question Types:** Multiple Choice
-        - **Passing Score:** 75% (23 out of 30)
         - **Time Limit:** No time limit
         - **Randomization:** Questions are randomized for each attempt
         

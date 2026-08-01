@@ -17,6 +17,7 @@ from utils.state import save_persistent_state
 from utils.auth_guard import get_current_user
 from utils.theme import render_sidebar_nav, render_app_header
 from components.mastery_dashboard import render_mastery_dashboard
+from components.learning_path import render_learning_path
 
 PAGE_TITLES = {
     "profile": ("My Profile", "Your account and mastery-level overview"),
@@ -68,27 +69,28 @@ elif st.session_state.current_page == "learning_path":
     # ====================================================================
     # LEARNING PATH PAGE
     # ====================================================================
-    with st.container(border=True):
-        st.markdown("""
-            #### 📚 Learning Materials & Resources
+    try:
+        with open("pages/learning_path.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Learning Path page: {str(e)}")
+    # with st.container(border=True):
+    #     st.markdown("""
+    #         #### 📚 Learning Materials & Resources
 
-            This section provides curated learning materials to help close the gaps
-            identified by your quiz results:
+    #         This section provides curated learning materials to help close the gaps
+    #         identified by your quiz results:
 
-            - Learning materials organized by unit
-            - Video tutorials
-            - Reading materials
-            - Practice exercises
-            - Progress tracking
+    #         - Reading materials organized by unit
+    #         - Learning with Chatbot Assistance
+    #         - Tracking Progress Learning
 
-            Start by taking the **Quiz** to identify your learning gaps.
-                    """)
+    #     """)
 
-    st.markdown("")
+    #     st.info("Complete quizzes first to get personalized learning recommendations.")
 
-    with st.container(border=True):
-        st.markdown("#### Available Units")
-        st.info("Complete quizzes first to get personalized learning recommendations.")
+    # with st.container(border=True):
+    #     render_learning_path()
 
 else:  # profile (default)
     # ====================================================================

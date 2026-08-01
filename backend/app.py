@@ -15,9 +15,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from services.question_loader import QuestionLoader
 from services.quiz_service import QuizService
+from services.materials_service import MaterialsService
 from controllers.quiz_controller import QuizController
+from controllers.materials_controller import MaterialsController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
+from routes.materials_routes import init_materials_routes
 # Table creation is disabled at startup: the users/quiz schema already exists
 # in the live database and is managed manually, not via these migration scripts.
 # from migrations.001_create_users_table import create_users_table
@@ -67,13 +70,16 @@ def create_app(config=None):
     # Initialize services
     question_loader = QuestionLoader(data_dir)
     quiz_service = QuizService(question_loader)
+    materials_service = MaterialsService()
 
-    # Initialize controller
+    # Initialize controllers
     controller = QuizController(quiz_service)
+    materials_controller = MaterialsController(materials_service)
 
     # Initialize routes
     init_quiz_routes(app, controller)
-    
+    init_materials_routes(app, materials_controller)
+
     # Initialize authentication
     print("Initializing authentication system...")
     # create_users_table()  # Create users table if it doesn't exist
@@ -104,6 +110,10 @@ def create_app(config=None):
                     "get_all_results": "GET /api/quiz/all-results",
                     "get_results_summary": "GET /api/quiz/results-summary",
                     "get_mastery_summary": "GET /api/quiz/mastery-summary"
+                },
+                "materials": {
+                    "get_all": "GET /api/materials/all",
+                    "get_recommended": "GET /api/materials/recommended"
                 }
             }
         }), 200
