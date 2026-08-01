@@ -12,20 +12,30 @@ from datetime import datetime
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+from datetime import datetime
 
 from utils.quiz_api import get_mastery_summary
+from utils.theme import SUCCESS, PRIMARY, TEXT, BORDER
 
+# Charts use the brand palette's success/primary colors so status coloring
+# stays consistent with the rest of the UI (see utils/theme.py)
 STATUS_COLORS = {
-    "Mastered": "#0ca30c",
-    "Remedial": "#d03b3b",
+    "Mastered": SUCCESS,
+    "Remedial": PRIMARY,
 }
+
+CHART_LAYOUT_DEFAULTS = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="-apple-system, Segoe UI, Roboto, sans-serif", color=TEXT),
+)
 
 
 def _format_date(iso_date: str) -> str:
     if not iso_date:
         return "Never"
     try:
-        return datetime.fromisoformat(iso_date).strftime("%b %d, %Y %H:%M")
+        return datetime.fromisoformat(iso_date).strftime("%d-%m-%Y")
     except ValueError:
         return iso_date
 
@@ -96,6 +106,7 @@ def render_mastery_dashboard():
             showlegend=True,
             legend_title_text="",
             margin=dict(t=10, b=10, l=10, r=10),
+            **CHART_LAYOUT_DEFAULTS,
         )
         st.plotly_chart(pie_fig, use_container_width=True)
 
@@ -112,10 +123,11 @@ def render_mastery_dashboard():
         )
         bar_fig.update_traces(textposition="outside", cliponaxis=False)
         bar_fig.update_layout(
-            yaxis=dict(title="Score", range=[0, 21], gridcolor="#e1e0d9"),
+            yaxis=dict(title="Score", range=[0, 21], gridcolor=BORDER),  # 21 = max possible unit score (6 questions x Bloom points)
             xaxis=dict(title="Unit Code"),
             legend_title_text="",
             margin=dict(t=10, b=10, l=10, r=10),
+            **CHART_LAYOUT_DEFAULTS,
         )
         st.plotly_chart(bar_fig, use_container_width=True)
 

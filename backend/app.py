@@ -1,5 +1,8 @@
 """
 Main Flask application for the Quiz Backend.
+
+App-factory entry point: wires QuestionLoader -> QuizService -> QuizController
+-> routes, and registers the auth blueprint. Run directly to start the dev server.
 """
 
 import os
@@ -7,7 +10,7 @@ import sys
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-# Add current directory to path for imports
+# Add current directory to path so `services.*`/`controllers.*`/`routes.*` absolute imports resolve
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from services.question_loader import QuestionLoader
@@ -15,6 +18,8 @@ from services.quiz_service import QuizService
 from controllers.quiz_controller import QuizController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
+# Table creation is disabled at startup: the users/quiz schema already exists
+# in the live database and is managed manually, not via these migration scripts.
 # from migrations.001_create_users_table import create_users_table
 # from migrations.002_create_quiz_tables import create_quiz_tables
 
@@ -48,6 +53,8 @@ def create_app(config=None):
     app.config.update(
         JSON_SORT_KEYS=False,
         JSONIFY_PRETTYPRINT_REGULAR=True,
+        # Signs the session cookie (see AuthController) - MUST be overridden via
+        # the SECRET_KEY env var in production; the fallback here is dev-only.
         SECRET_KEY=os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production"),
         SESSION_COOKIE_SECURE=False,  # Set to True in production with HTTPS
         SESSION_COOKIE_HTTPONLY=True,

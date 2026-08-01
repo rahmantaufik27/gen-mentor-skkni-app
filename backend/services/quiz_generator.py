@@ -30,11 +30,16 @@ class QuizGenerator:
         "C6": 6
     }
     
-    # Mastery threshold: 15 points out of 21 per unit
+    # Legacy scalar mastery threshold (15/21 points). Superseded by
+    # MasteryService, which derives mastery from the highest Bloom level
+    # answered correctly vs. each unit's target_level (knowledge_target.json).
+    # Kept only for calculate_unit_mastery() below, which is no longer called
+    # by the active mastery pipeline.
     MASTERY_THRESHOLD = 15
     MAX_UNIT_SCORE = 21  # 6 questions × max 3.5 average, but we use exact Bloom scores
-    
-    # Top 6 units by question count (these have best Bloom coverage)
+
+    # Canonical 6 units used to build every quiz (3-segment codes). Must stay
+    # in sync with the (truncated) unit_code values in knowledge_target.json.
     PREFERRED_UNITS = [
         "J.620100.010",
         "J.620100.016",
@@ -43,8 +48,8 @@ class QuizGenerator:
         "J.620100.015",
         "J.620100.017"
     ]
-    
-    BLOOM_LEVELS = ["C1", "C2", "C3", "C4", "C5", "C6"]
+
+    BLOOM_LEVELS = ["C1", "C2", "C3", "C4", "C5", "C6"]  # ordered low -> high difficulty
     
     def __init__(self, question_loader: QuestionLoader):
         """
@@ -164,11 +169,12 @@ class QuizGenerator:
     
     def calculate_unit_mastery(self, unit_score: int) -> Tuple[str, bool]:
         """
-        Calculate mastery status for a unit.
-        
+        Calculate mastery status for a unit (legacy scalar-threshold method,
+        unused by the current mastery pipeline - see services/mastery_service.py).
+
         Args:
             unit_score: Total score for unit (0-21)
-            
+
         Returns:
             Tuple of (status string, is_mastered boolean)
         """

@@ -26,7 +26,7 @@ def bloom_level_rank(level: Optional[str]) -> int:
 class MasteryInferenceStrategy(ABC):
     """Interface for inferring a unit's mastery level from its per-Bloom-level correctness."""
 
-    method_name: str = "unknown"
+    method_name: str = "unknown"  # persisted verbatim into user_mastery_level.method
 
     @abstractmethod
     def infer_unit_mastery_level(self, bloom_correctness: Dict[str, bool]) -> Optional[str]:

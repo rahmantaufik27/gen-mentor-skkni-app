@@ -1,4 +1,11 @@
-"""Database configuration and connection management."""
+"""
+Database configuration and connection management.
+
+Single point of access to PostgreSQL for the whole backend: reads credentials
+from db.ini (gitignored, never committed) and exposes get_db_connection() /
+execute_query() as the shared helpers every service uses instead of managing
+psycopg2 connections directly.
+"""
 
 import os
 import configparser
@@ -46,7 +53,7 @@ class DatabaseConfig:
             "database": self.config.get(section, "database"),
             "user": self.config.get(section, "user"),
             "password": self.config.get(section, "password"),
-            "port": self.config.getint(section, "port", fallback=5432)
+            "port": self.config.getint(section, "port", fallback=5432)  # standard Postgres port
         }
 
 
@@ -86,11 +93,13 @@ def execute_query(query: str, params: tuple = None, fetch: bool = False):
     Raises:
         Exception: If query execution fails
     """
+    # Opens a fresh connection per call (no pooling) and always closes it in
+    # `finally` - simple and safe for this app's request volume.
     connection = None
     try:
         connection = get_db_connection()
         cursor = connection.cursor()
-        
+
         if params:
             cursor.execute(query, params)
         else:

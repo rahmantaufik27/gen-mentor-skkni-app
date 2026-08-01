@@ -1,9 +1,21 @@
+"""
+Session-state utilities: default initialization plus a JSON-file-backed
+persistence layer so a whitelisted subset of st.session_state survives
+Streamlit reruns/reloads.
+
+NOTE: goal/learning-path related helpers below (add_new_goal, change_selected_goal_id,
+etc.) belong to a separate, currently-unused goal-planning subsystem - unrelated
+to the active auth/quiz/mastery flow.
+"""
+
 import streamlit as st
 from collections import defaultdict
 import config
 import json
 from pathlib import Path
 
+# Whitelist of session_state keys that get written to/read from user_data/data_store.json.
+# Anything not listed here is in-memory only and resets on every Streamlit rerun.
 PERSIST_KEYS = [
     "backend_endpoint",
     "available_models",
@@ -118,7 +130,7 @@ def initialize_session_state():
             st.session_state["llm_type"] = "None"
 
     if "userId" not in st.session_state:
-        st.session_state["userId"] = "TestUser"
+        st.session_state["userId"] = "TestUser"  # placeholder until login sets a real user UUID
         
     if "sample_number" not in st.session_state:
         st.session_state["sample_number"] = 2
@@ -139,7 +151,7 @@ def initialize_session_state():
         st.session_state["goals"] = []
     
     if "current_page" not in st.session_state:
-        st.session_state["current_page"] = {}
+        st.session_state["current_page"] = "profile"  # default tab shown in the app shell (utils/theme.py)
         
     if "document_caches" not in st.session_state:
         st.session_state["document_caches"] = {}

@@ -1,5 +1,9 @@
 """
 Controllers for quiz API endpoints.
+
+Thin pass-through to QuizService: each method just calls the matching
+service method and normalizes unexpected exceptions into the app's
+{"success": False, "error": ...} response shape.
 """
 
 from services.quiz_service import QuizService

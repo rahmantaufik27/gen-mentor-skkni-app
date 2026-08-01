@@ -1,4 +1,9 @@
-"""Authentication service for user registration and login."""
+"""
+Authentication service for user registration and login.
+
+Passwords are hashed with bcrypt (never stored in plain text); sessions are
+Flask server-side cookie sessions (see AuthController), not JWT.
+"""
 
 import bcrypt
 import uuid
@@ -21,7 +26,7 @@ class AuthenticationService:
         Returns:
             Hashed password string
         """
-        salt = bcrypt.gensalt(rounds=12)
+        salt = bcrypt.gensalt(rounds=12)  # cost factor: higher = slower/safer against brute force
         hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
         return hashed.decode("utf-8")
     
@@ -57,6 +62,7 @@ class AuthenticationService:
         try:
             connection = get_db_connection()
             cursor = connection.cursor()
+            # Emails are always stored/compared lowercase for case-insensitive uniqueness
             cursor.execute("SELECT id FROM users WHERE email = %s", (email.lower(),))
             result = cursor.fetchone()
             cursor.close()
@@ -87,7 +93,7 @@ class AuthenticationService:
         if not email or not email.strip():
             return False, "Email is required", None
         
-        if not password or len(password) < 8:
+        if not password or len(password) < 8:  # minimum password length policy
             return False, "Password must be at least 8 characters", None
         
         email = email.lower().strip()

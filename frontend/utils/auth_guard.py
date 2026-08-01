@@ -2,6 +2,9 @@
 Authentication Guard Utility
 
 Provides helper functions for protecting routes and managing authentication state.
+Auth state here is frontend-only (st.session_state.logged_in / userId, etc.) set
+after a successful call to the backend's /api/auth/login - it does not itself
+verify anything with the server.
 """
 
 import streamlit as st

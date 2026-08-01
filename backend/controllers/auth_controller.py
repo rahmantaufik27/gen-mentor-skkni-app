@@ -1,4 +1,9 @@
-"""Authentication controller for handling auth requests."""
+"""
+Authentication controller for handling auth requests.
+
+Parses/validates request JSON, delegates business logic to
+AuthenticationService, and translates results into Flask JSON responses.
+"""
 
 from flask import request, jsonify, session
 from services.auth_service import AuthenticationService
@@ -105,7 +110,7 @@ class AuthController:
             success, message, user_data = AuthenticationService.login_user(email, password)
             
             if success:
-                # Store user info in session
+                # Store user info in the signed session cookie (see app.py SECRET_KEY)
                 session["user_id"] = user_data["id"]
                 session["user_name"] = user_data["full_name"]
                 session["user_email"] = user_data["email"]

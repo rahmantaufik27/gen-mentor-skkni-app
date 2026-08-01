@@ -1,11 +1,14 @@
 """
-API routes for quiz endpoints.
+API routes for quiz endpoints - thin HTTP layer over QuizController.
+
+Every route follows the same convention: call the controller, then map its
+{"success": bool, ...} dict to HTTP 200 (success) or 400 (error).
 """
 
 from flask import Blueprint, request, jsonify
 from controllers.quiz_controller import QuizController
 
-# Create blueprint
+# All endpoints below are mounted under /api/quiz/*
 quiz_bp = Blueprint("quiz", __name__, url_prefix="/api/quiz")
 
 

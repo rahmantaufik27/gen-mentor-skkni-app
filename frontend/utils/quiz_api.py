@@ -1,5 +1,10 @@
 """
 Quiz API utilities for frontend integration.
+
+Thin httpx wrappers around the backend's /api/quiz/* endpoints. Every
+function returns a {"success": bool, ...} dict and never raises - network
+or server errors are caught and surfaced as {"success": False, "error": ...}
+so calling pages can just check `.get("success")`.
 """
 
 import httpx

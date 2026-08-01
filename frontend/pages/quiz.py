@@ -36,10 +36,7 @@ def render_quiz_page():
     # NOTE: st.set_page_config() is called by main.py, not here
     
     initialize_quiz_state()
-    
-    st.title("🎯 Quiz Assessment")
-    st.divider()
-    
+
     # Quiz not started
     if not st.session_state.quiz_started:
         render_quiz_start()
@@ -55,20 +52,21 @@ def render_quiz_page():
 
 def render_quiz_start():
     """Render quiz start screen"""
-    st.subheader("Start a New Quiz")
+    with st.container(border=True):
+        st.markdown("#### 📝 Start a New Quiz")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("""
-        ### Quiz Information
+        #### Quiz Information
         - **Total Questions:** 30
         - **Question Types:** Multiple Choice
         - **Passing Score:** 75% (23 out of 30)
         - **Time Limit:** No time limit
         - **Randomization:** Questions are randomized for each attempt
         
-        ### How to Take the Quiz
+        #### How to Take the Quiz
         1. Click "Start Quiz" to begin
         2. Answer each question by selecting one option
         3. Click "Next Question" to proceed

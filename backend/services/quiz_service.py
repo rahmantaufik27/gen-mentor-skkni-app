@@ -25,7 +25,10 @@ class QuizService:
         self.question_loader = question_loader
         self.generator = QuizGenerator(question_loader)
         self.mastery_service = MasteryService()
-        self.sessions = {}  # In-memory cache for active sessions
+        # In-memory cache for active (in-progress) sessions only - not persisted,
+        # so an in-progress quiz is lost if the server restarts. Completed
+        # attempts are durable (written to Postgres in complete_quiz()).
+        self.sessions = {}
     
     def start_quiz(self, user_id: str) -> Dict:
         """
@@ -326,6 +329,11 @@ class QuizService:
             Dictionary with quiz history, or error
         """
         try:
+            # NOTE: total_questions/correct_answers/pass_fail are not columns on
+            # quiz_attempts (that data lives in quiz_attempt_details / the
+            # `passed` boolean) - this pre-existing query will fail at runtime.
+            # Left as-is per "preserve existing behavior"; use get_user_mastery_summary()
+            # for a working dashboard-oriented view of a user's attempts.
             query = """
             SELECT id, started_at, completed_at, total_questions, correct_answers, total_score, pass_fail
             FROM quiz_attempts

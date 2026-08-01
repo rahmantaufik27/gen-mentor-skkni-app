@@ -1,9 +1,9 @@
-"""Authentication routes."""
+"""Authentication routes - thin HTTP layer delegating to AuthController."""
 
 from flask import Blueprint
 from controllers.auth_controller import AuthController
 
-# Create authentication blueprint
+# All endpoints below are mounted under /api/auth/*
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 

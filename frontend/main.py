@@ -1,5 +1,17 @@
+"""
+App entry point (`streamlit run main.py`).
+
+Acts as the router: unauthenticated users are sent to the Login page;
+authenticated users get pages/learner_profile.py exec'd in place as the
+main hub (which in turn exec's pages/quiz.py for the Quiz tab). This is
+also the only place that calls st.set_page_config()/inject_theme() for the
+authenticated shell - Login/Register are separate entry scripts with their
+own config.
+"""
+
 import streamlit as st
 from utils.state import initialize_session_state, save_persistent_state, load_persistent_state
+from utils.theme import inject_theme
 
 # ============================================================================
 # INITIALIZE SESSION STATE
@@ -13,46 +25,14 @@ st.set_page_config(
     page_title="GenQ-SKKNI",
     page_icon=":books:",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Hide default Streamlit sidebar
+    initial_sidebar_state="expanded"  # Real left nav sidebar (custom content, not Streamlit's auto page list)
 )
 st.set_option("client.showSidebarNavigation", False)
 
 # ============================================================================
-# HIDE STREAMLIT'S AUTOMATIC PAGE SIDEBAR (with CSS)
+# LOAD SHARED THEME (palette, typography, cards, buttons, sidebar, header)
 # ============================================================================
-# hide_sidebar = """
-# <style>
-#     /* Hide the automatic page sidebar completely */
-#     [data-testid="collapsedControl"] {
-#         display: none !important;
-#     }
-#     [data-testid="baseButton-header-close"] {
-#         display: none !important;
-#     }
-#     ul[data-testid="stSidebarNavigation"] {
-#         display: none !important;
-#     }
-#     /* Hide the sidebar entirely */
-#     section[data-testid="stSidebar"] {
-#         display: none !important;
-#     }
-# </style>
-# """
-# st.markdown(hide_sidebar, unsafe_allow_html=True)
-
-# ============================================================================
-# LOAD ASSETS & CSS (with error handling)
-# ============================================================================
-# try:
-#     st.logo("./assets/avatar.png")
-# except Exception as e:
-#     pass
-
-try:
-    with open('./assets/css/main.css', 'r') as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
-except Exception as e:
-    pass
+inject_theme()
 
 # ============================================================================
 # AUTHENTICATION CHECK - CONDITIONAL NAVIGATION

@@ -10,7 +10,7 @@ from datetime import datetime
 
 
 class AnswerType(str, Enum):
-    """Types of answers"""
+    """Types of answers. Only MULTIPLE_CHOICE is currently used by the quiz flow."""
     MULTIPLE_CHOICE = "multiple_choice"
     TRUE_FALSE = "true_false"
 

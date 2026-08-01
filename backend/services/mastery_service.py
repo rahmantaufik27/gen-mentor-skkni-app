@@ -20,6 +20,7 @@ from services.mastery_inference import (
 )
 from services.quiz_generator import QuizGenerator
 
+# Canonical mastery_status values written to user_mastery_level and returned by the API
 MASTERED = "Mastered"
 REMEDIAL = "Remedial"
 
@@ -81,6 +82,8 @@ class MasteryService:
                 QuizGenerator.BLOOM_SCORES.get(level, 0)
                 for level, correct in bloom_correctness.items() if correct
             )
+            # Mastered iff the learner's highest correct Bloom level meets or
+            # exceeds this unit's required target_level from knowledge_target.json
             mastery_status = (
                 MASTERED if bloom_level_rank(unit_mastery_level) >= bloom_level_rank(target_level)
                 else REMEDIAL

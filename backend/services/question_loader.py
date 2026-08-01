@@ -28,7 +28,7 @@ class QuestionLoader:
         Returns:
             List of Question objects
         """
-        if self.questions_cache:
+        if self.questions_cache:  # load once, reuse for the lifetime of the process
             return self.questions_cache
 
         questions_path = os.path.join(self.data_dir, "questions.json")
@@ -43,8 +43,8 @@ class QuestionLoader:
         for idx, q_data in enumerate(data):
             # Extract correct answer letter (a, b, c, d)
             correct_answer = str(q_data.get("correct_answer", "")).upper().strip(")")
-            
-            # Map letter to index
+
+            # Map answer letter to its 0-based option index
             letter_to_index = {"A": 0, "B": 1, "C": 2, "D": 3, "a": 0, "b": 1, "c": 2, "d": 3}
             correct_idx = letter_to_index.get(correct_answer, 0)
             
@@ -68,13 +68,13 @@ class QuestionLoader:
                 choices.append(choice)
             
             # Extract category from unit (use last segment for category)
-            unit = q_data.get("unit", "General")  # Keep original unit
+            unit = q_data.get("unit", "General")  # Keep original (untruncated) unit code
             category = unit.split(".")[-1] if unit else "General"
-            
-            # Get bloom level from JSON
+
+            # Bloom taxonomy level (C1-C6) drives both scoring and mastery evaluation
             bloom = str(q_data.get("bloom_level", "C2")).upper()
-            
-            # Map bloom level to difficulty
+
+            # Map bloom level to a coarse difficulty label (display-only, not used for scoring)
             if bloom.startswith("C1") or bloom.startswith("C2"):
                 difficulty = "easy"
             elif bloom.startswith("C3") or bloom.startswith("C4"):
