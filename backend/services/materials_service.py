@@ -1,74 +1,52 @@
 """
-Service for loading reading materials and recommending them by mastery gap.
+Service for reading materials and recommending them by mastery gap.
 
-Materials are read fresh from data/materials.json on every call (no in-memory
-cache), so new materials can be added or edited without restarting the server -
-the file is treated as dynamic content, not code.
+Materials now live in the Neo4j knowledge graph (see services/neo4j_service.py
+and scripts/seed_neo4j.py) instead of data/materials.json - Neo4j is the
+runtime source for both "All Materials" and "Recommended for You". The
+recommendation engine itself (Neo4jService.get_recommended_materials) is
+injected/swappable: this service's public contract (get_all_materials,
+get_recommended_materials) is unchanged, so neither the API layer nor the
+frontend needed to change to pick this up.
 """
 
-import json
-import os
 from typing import Dict, List, Optional
 
 from services.mastery_service import MasteryService
-
-
-def _truncate_unit_code(unit_code: str) -> str:
-    """Reduce a full unit code (e.g. 'J.620100.010.01') to its 3-segment main
-    code, matching the format used by MasteryService/knowledge_target.json."""
-    parts = (unit_code or "").split(".")
-    return ".".join(parts[:3]) if len(parts) >= 3 else unit_code
+from services.neo4j_service import Neo4jService, get_neo4j_service
 
 
 class MaterialsService:
-    """Loads reading materials and cross-references them with unit mastery."""
+    """Reads materials from Neo4j and cross-references them with unit mastery."""
 
-    def __init__(self, mastery_service: Optional[MasteryService] = None):
-        # Own MasteryService instance - this module stays self-contained so
-        # other learning methods can be added later without depending on it.
+    def __init__(self, mastery_service: Optional[MasteryService] = None, neo4j_service: Optional[Neo4jService] = None):
+        # MasteryService (Postgres, the source of truth) is used only to
+        # determine "has this user mastered everything" - the actual
+        # material list/ranking comes from Neo4j.
         self.mastery_service = mastery_service or MasteryService()
-
-    def _materials_path(self) -> str:
-        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(backend_dir, "data", "materials.json")
+        self.neo4j_service = neo4j_service or get_neo4j_service()
 
     def get_all_materials(self) -> List[Dict]:
-        """Return every material from data/materials.json, unfiltered."""
-        path = self._materials_path()
-        if not os.path.exists(path):
-            return []
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return data if isinstance(data, list) else []
+        """Return every material in the Neo4j knowledge graph, unfiltered."""
+        return self.neo4j_service.get_all_materials()
 
     def get_recommended_materials(self, user_id: str) -> Dict:
         """
         Materials for units that are currently Remedial (i.e. have not yet
-        reached their target Bloom level), annotated with that unit's
-        mastery info so the frontend can explain why each was recommended.
+        reached their target Bloom level), prioritized by Neo4jService
+        (Remedial units first, then lowest knowledge level first).
 
         Returns:
             {"materials": [...], "all_mastered": bool}
         """
         summary = self.mastery_service.get_user_mastery_summary(user_id)
-        units_by_code = {u["unit_code"]: u for u in summary.get("units", [])}
-        remedial_codes = {
-            code for code, u in units_by_code.items() if u["mastery_status"] == "Remedial"
-        }
+        all_mastered = bool(summary.get("units")) and all(
+            u["mastery_status"] == "Mastered" for u in summary.get("units", [])
+        )
 
-        recommended = []
-        for material in self.get_all_materials():
-            unit_code = _truncate_unit_code(material.get("unit_code", ""))
-            if unit_code in remedial_codes:
-                unit_info = units_by_code[unit_code]
-                recommended.append({
-                    **material,
-                    "mastery_status": unit_info["mastery_status"],
-                    "target_level": unit_info["target_level"],
-                    "unit_mastery_level": unit_info["unit_mastery_level"],
-                })
+        recommended = self.neo4j_service.get_recommended_materials(user_id)
 
         return {
             "materials": recommended,
-            "all_mastered": len(remedial_codes) == 0,
+            "all_mastered": all_mastered,
         }

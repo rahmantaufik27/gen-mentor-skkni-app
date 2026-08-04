@@ -1,16 +1,25 @@
 """
-Learning Path orchestrator.
+Learning Path module.
 
-Presents the available learning methods and delegates rendering to each
-method's own component. Adding a new learning method later only requires
-adding an entry to LEARNING_METHODS and its own render_* component - no
-changes needed to existing methods (e.g. components/reading_materials.py)
-or to the selector logic below.
+LEARNING_METHODS is the single source of truth for the three Learning Path
+sub-features (Reading Materials, Learning with Chatbot Assistance,
+Exercises with Generative Questions): their sidebar submenu labels (via
+get_learning_path_submenu()) and their render functions. Each method is now
+its own dedicated full page (pages/reading_materials.py, pages/chatbot.py,
+pages/exercises.py) rather than content switched inside Learning Path -
+Learning Path itself is a separate landing page (pages/learning_path.py).
+
+Adding a new learning method later: add an entry to LEARNING_METHODS,
+create its own pages/<name>.py (follow the existing pattern - see any of
+the three above), and add one elif branch to
+pages/learner_profile.py's routing - no changes needed to the other
+methods or to the sidebar.
 """
 
 import streamlit as st
 
 from components.reading_materials import render_reading_materials
+from components.exercises import render_exercises
 
 
 def _render_coming_soon(name: str, description: str):
@@ -21,39 +30,18 @@ def _render_coming_soon(name: str, description: str):
 
 
 LEARNING_METHODS = {
-    "reading_materials": {"label": "📖 Reading Materials", "render": render_reading_materials},
-    # Placeholders below show how a future method plugs in: add a real
-    # component (see components/reading_materials.py for the pattern) and
-    # point "render" at it - no changes needed to Reading Materials or the
-    # selector logic below.
-    "video_tutorials": {
-        "label": "🤖 Learning with Chatbot Assistance",
-        "render": _render_coming_soon("Video Tutorials", "Step-by-step video guides for each unit."),
+    "reading_materials": {"label": "Reading Materials", "render": render_reading_materials},
+    "chatbot": {
+        "label": "Learning with Chatbot Assistance",
+        "render": _render_coming_soon(
+            "Learning with Chatbot Assistance",
+            "Chat with an AI tutor for personalized help - LLM integration coming soon.",
+        ),
     },
-    # "practice_exercises": {
-    #     "label": "🛤️ Tracking Progress Learning",
-    #     "render": _render_coming_soon("Practice Exercises", "Interactive exercises to reinforce your learning."),
-    # },
+    "exercises": {"label": "Exercises with Generative Questions", "render": render_exercises},
 }
 
 
-def render_learning_path():
-    """Render the Learning Path page: a method selector + the active method's content."""
-    method_keys = list(LEARNING_METHODS.keys())
-    labels = [LEARNING_METHODS[key]["label"] for key in method_keys]
-
-    if st.session_state.get("learning_method") not in method_keys:
-        st.session_state["learning_method"] = method_keys[0]
-
-    selected_label = st.radio(
-        "Learning method",
-        options=labels,
-        index=method_keys.index(st.session_state["learning_method"]),
-        horizontal=True,
-        label_visibility="collapsed",
-        key="learning_method_selector",
-    )
-    st.session_state["learning_method"] = method_keys[labels.index(selected_label)]
-    st.markdown("")
-
-    LEARNING_METHODS[st.session_state["learning_method"]]["render"]()
+def get_learning_path_submenu() -> list:
+    """Sidebar submenu items for Learning Path, derived from LEARNING_METHODS."""
+    return [{"key": key, "label": method["label"]} for key, method in LEARNING_METHODS.items()]

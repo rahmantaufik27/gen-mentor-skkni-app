@@ -137,6 +137,20 @@ section[data-testid="stSidebar"] .stButton button[kind="primary"] {
     color: #fff !important;
 }
 
+/* Sidebar submenu (e.g. Learning Path's Reading Materials / Exercises /
+   Chatbot) - indented, smaller items with a left rail to show nesting. */
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] {
+    margin: 0 0 6px 10px;
+    padding-left: 10px;
+    border-left: 2px solid var(--border);
+}
+
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] .stButton button {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.4rem 0.55rem !important;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Header bar (title + user chip)                                        */
 /* ---------------------------------------------------------------------- */

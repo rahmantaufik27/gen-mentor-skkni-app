@@ -21,6 +21,7 @@ from controllers.materials_controller import MaterialsController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
 from routes.materials_routes import init_materials_routes
+from routes.admin_routes import init_admin_routes
 # Table creation is disabled at startup: the users/quiz schema already exists
 # in the live database and is managed manually, not via these migration scripts.
 # from migrations.001_create_users_table import create_users_table
@@ -79,6 +80,7 @@ def create_app(config=None):
     # Initialize routes
     init_quiz_routes(app, controller)
     init_materials_routes(app, materials_controller)
+    init_admin_routes(app)
 
     # Initialize authentication
     print("Initializing authentication system...")
@@ -109,11 +111,19 @@ def create_app(config=None):
                     "get_results": "GET /api/quiz/results/<session_id>",
                     "get_all_results": "GET /api/quiz/all-results",
                     "get_results_summary": "GET /api/quiz/results-summary",
-                    "get_mastery_summary": "GET /api/quiz/mastery-summary"
+                    "get_mastery_summary": "GET /api/quiz/mastery-summary",
+                    "get_recommended_questions": "GET /api/quiz/recommended-questions"
                 },
                 "materials": {
                     "get_all": "GET /api/materials/all",
                     "get_recommended": "GET /api/materials/recommended"
+                },
+                "admin": {
+                    "login": "POST /api/admin/login",
+                    "logout": "POST /api/admin/logout",
+                    "get_all_users": "GET /api/admin/users",
+                    "update_inference_method": "PUT /api/admin/users/<user_id>/inference-method",
+                    "bulk_update_inference_method": "PUT /api/admin/users/inference-method"
                 }
             }
         }), 200

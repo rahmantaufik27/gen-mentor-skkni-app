@@ -115,3 +115,18 @@ class QuizController:
             return self.quiz_service.get_user_mastery_summary(user_id)
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def get_recommended_questions(self, user_id: str) -> dict:
+        """
+        Get practice questions recommended from the Neo4j knowledge graph
+
+        Args:
+            user_id: ID of the user
+
+        Returns:
+            Dictionary with recommended questions
+        """
+        try:
+            return self.quiz_service.get_recommended_questions(user_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}

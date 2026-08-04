@@ -5,7 +5,7 @@
   ],
   "if_complete_onboarding": false,
   "sample_number": 2,
-  "logged_in": true,
+  "logged_in": false,
   "show_chatbot": true,
   "llm_type": "OpenAI/GPT-4o",
   "tutor_messages": [],
@@ -30,9 +30,9 @@
     "id": 0
   },
   "learned_skills_history": {},
-  "userId": "60d9ae13-d346-4af8-96f0-b20d37a2cf45",
-  "user_name": "admin",
-  "user_email": "admin@gmail.com",
+  "userId": null,
+  "user_name": null,
+  "user_email": null,
   "document_caches": {},
   "session_learning_times": {}
 }

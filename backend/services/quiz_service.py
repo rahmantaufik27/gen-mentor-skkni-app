@@ -10,6 +10,7 @@ from config.database import execute_query
 from services.quiz_generator import QuizGenerator
 from services.question_loader import QuestionLoader
 from services.mastery_service import MasteryService
+from services.neo4j_service import get_neo4j_service
 
 
 class QuizService:
@@ -25,6 +26,7 @@ class QuizService:
         self.question_loader = question_loader
         self.generator = QuizGenerator(question_loader)
         self.mastery_service = MasteryService()
+        self.neo4j_service = get_neo4j_service()
         # In-memory cache for active (in-progress) sessions only - not persisted,
         # so an in-progress quiz is lost if the server restarts. Completed
         # attempts are durable (written to Postgres in complete_quiz()).
@@ -380,3 +382,38 @@ class QuizService:
             return self.mastery_service.get_user_mastery_summary(user_id)
         except Exception as e:
             return {"success": False, "error": f"Failed to retrieve mastery summary: {str(e)}"}
+
+    def get_recommended_questions(self, user_id: str) -> Dict:
+        """
+        Get practice questions recommended from the Neo4j knowledge graph:
+        questions (Evaluation nodes) for Remedial units at the user's current
+        knowledge level for that unit. The existing knowledge graph already
+        holds full question text/options (it was built from the same
+        question bank), so no separate lookup is needed here - which option
+        is correct is intentionally left out of the response.
+
+        Args:
+            user_id: User UUID
+
+        Returns:
+            Dictionary with a "questions" list, or error
+        """
+        try:
+            recommendations = self.neo4j_service.get_recommended_questions(user_id)
+
+            questions = [
+                {
+                    "id": rec.get("question_id"),
+                    "question_text": rec.get("question_text"),
+                    "unit": rec.get("unit_code"),
+                    "bloom_level": rec.get("bloom_level"),
+                    "options": rec.get("options", []),
+                    "mastery_status": rec.get("mastery_status"),
+                    "target_level": rec.get("target_level"),
+                }
+                for rec in recommendations
+            ]
+
+            return {"success": True, "questions": questions}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to retrieve recommended questions: {str(e)}"}

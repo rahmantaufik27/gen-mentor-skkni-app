@@ -6,6 +6,12 @@ The actual inference (how a unit's mastery level is derived from per-question
 results) is delegated to a MasteryInferenceStrategy (see mastery_inference.py)
 so it can be replaced later without changing persistence, the API contract,
 or the dashboard.
+
+Which strategy runs for a given user is decided by their inference_method
+preference on the `users` table (see AuthenticationService.get_inference_method),
+never by user_mastery_level. Only 'Manual' has a real implementation today;
+'DBN' is read and honored as the preference, but resolves to the manual
+strategy until the DBN engine is built (see _resolve_strategy below).
 """
 
 import json
@@ -19,6 +25,8 @@ from services.mastery_inference import (
     bloom_level_rank,
 )
 from services.quiz_generator import QuizGenerator
+from services.neo4j_service import get_neo4j_service
+from services.auth_service import AuthenticationService, INFERENCE_METHOD_MANUAL
 
 # Canonical mastery_status values written to user_mastery_level and returned by the API
 MASTERED = "Mastered"
@@ -41,18 +49,52 @@ class MasteryService:
 
     def __init__(self, inference_strategy: Optional[MasteryInferenceStrategy] = None):
         self.inference_strategy = inference_strategy or ManualMasteryInference()
-        self.targets = self._load_targets()
+        self.targets, self.full_unit_codes = self._load_targets()
 
-    def _load_targets(self) -> Dict[str, str]:
-        """Load unit_code -> target_level (Bloom) from knowledge_target.json."""
+    def _load_targets(self) -> tuple:
+        """
+        Load from knowledge_target.json:
+        - targets: truncated unit_code (3-segment, matches Postgres) -> target_level
+        - full_unit_codes: truncated unit_code -> full unit_code (4-segment, matches
+          the Unit.kode property already used by the Neo4j knowledge graph)
+        """
         backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         path = os.path.join(backend_dir, "data", "knowledge_target.json")
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return {
-            _truncate_unit_code(unit["unit_code"]): unit["target_level"]
-            for unit in data.get("units", [])
-        }
+        targets = {}
+        full_unit_codes = {}
+        for unit in data.get("units", []):
+            truncated = _truncate_unit_code(unit["unit_code"])
+            targets[truncated] = unit["target_level"]
+            full_unit_codes[truncated] = unit["unit_code"]
+        return targets, full_unit_codes
+
+    def _resolve_strategy(self, user_id: str) -> MasteryInferenceStrategy:
+        """
+        Load the user's inference_method preference from the users table
+        (requirement: read from users, never from user_mastery_level) and
+        resolve it to the strategy that actually runs.
+
+        Only 'Manual' has a working implementation today. 'DBN' is read and
+        acknowledged, but until the DBN engine exists it falls back to the
+        manual strategy so quiz completion keeps working for every user
+        regardless of their setting. Wiring in a real DBN strategy later is
+        a one-line change here - no schema or UI changes needed.
+        """
+        try:
+            user_inference_method = AuthenticationService.get_inference_method(user_id)
+        except Exception as e:
+            print(f"Warning: Failed to load inference_method for user {user_id}: {str(e)}")
+            user_inference_method = None
+
+        print(f"Inference method for user {user_id}: {user_inference_method or '(unset, using default)'}")
+
+        if user_inference_method == INFERENCE_METHOD_MANUAL:
+            return ManualMasteryInference()
+        # Covers 'DBN' and any unset/unrecognized value - manual is the
+        # only working engine today.
+        return self.inference_strategy
 
     def compute_and_save_unit_mastery(self, attempt_id: str, user_id: str) -> List[Dict]:
         """
@@ -64,6 +106,8 @@ class MasteryService:
             Per-unit results: unit_code, unit_score, unit_mastery_level,
             target_level, mastery_status.
         """
+        strategy = self._resolve_strategy(user_id)
+
         rows = execute_query(
             "SELECT unit_code, bloom_level, is_correct FROM quiz_attempt_details WHERE attempt_id = %s",
             (attempt_id,),
@@ -77,7 +121,7 @@ class MasteryService:
         results = []
         for unit_code, target_level in self.targets.items():
             bloom_correctness = by_unit.get(unit_code, {})
-            unit_mastery_level = self.inference_strategy.infer_unit_mastery_level(bloom_correctness)
+            unit_mastery_level = strategy.infer_unit_mastery_level(bloom_correctness)
             unit_score = sum(
                 QuizGenerator.BLOOM_SCORES.get(level, 0)
                 for level, correct in bloom_correctness.items() if correct
@@ -92,14 +136,27 @@ class MasteryService:
             execute_query(
                 """
                 INSERT INTO user_mastery_level
-                (id, attempt_id, user_id, unit_code, unit_score, mastery_status, unit_mastery_level, method)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                (id, attempt_id, user_id, unit_code, unit_score, mastery_status, unit_mastery_level)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     str(uuid4()), attempt_id, user_id, unit_code,
-                    unit_score, mastery_status, unit_mastery_level, self.inference_strategy.method_name
+                    unit_score, mastery_status, unit_mastery_level
                 )
             )
+
+            # Best-effort sync to the Neo4j knowledge graph: (User)-[:MASTERY]->(Unit),
+            # MERGEd so re-syncing the same user+unit updates rather than duplicates.
+            # PostgreSQL above is already committed and remains the source of truth.
+            # Uses the FULL unit code (Unit.kode in the existing knowledge graph),
+            # not the truncated code used internally by Postgres.
+            try:
+                full_unit_code = self.full_unit_codes.get(unit_code, unit_code)
+                get_neo4j_service().sync_mastery(
+                    user_id, full_unit_code, unit_mastery_level, mastery_status, target_level
+                )
+            except Exception as e:
+                print(f"Warning: Failed to sync mastery for {unit_code} to Neo4j: {str(e)}")
 
             results.append({
                 "unit_code": unit_code,

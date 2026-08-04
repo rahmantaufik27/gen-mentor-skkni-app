@@ -14,4 +14,6 @@ backend/venv
 backend/data
 .DS_Store
 backend/db.ini
+backend/neo4j.ini
+backend/logs/
 .claude

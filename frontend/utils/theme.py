@@ -24,6 +24,9 @@ NAV_ITEMS = [
     {"key": "learning_path", "label": "Learning Path", "icon": ":material/school:"},
     {"key": "quiz", "label": "Quiz", "icon": ":material/assignment:"},
 ]
+# Admin is a separate module (pages/admin_login.py + pages/admin_dashboard.py,
+# its own login and session-state flag) - deliberately not part of the
+# learner sidebar. See components/admin_shell.py.
 
 
 def inject_theme():
@@ -61,12 +64,28 @@ def render_brand(auth_style: bool = False):
     )
 
 
-def render_sidebar_nav(active: str):
+def render_sidebar_nav(active: str, submenus: dict = None):
     """
-    Render the left navigation sidebar (brand + nav items).
-    Sets st.session_state.current_page and reruns on click - same behavior
-    as the previous top-nav bar, just relocated into a real left sidebar.
+    Render the left navigation sidebar (brand + nav items), with optional
+    nested submenu items shown indented under a NAV_ITEMS entry - e.g.
+    Learning Path's Reading Materials / Learning with Chatbot Assistance /
+    Exercises with Generative Questions items.
+
+    Submenu items are always visible (not gated by their parent being
+    active) and are full pages in their own right: clicking one navigates
+    straight to it by setting st.session_state.current_page to the child's
+    key, exactly like a top-level item - so `active` alone (checked against
+    both NAV_ITEMS and submenu keys) determines every highlight.
+
+    Args:
+        active: current page key (st.session_state.current_page)
+        submenus: {item_key: [{"key":..., "label":...}, ...]} - optional.
+            Any NAV_ITEMS entry with a matching key gets these children
+            rendered underneath it, always visible, generic enough for any
+            future nav item to gain a submenu the same way.
     """
+    submenus = submenus or {}
+
     with st.sidebar:
         render_brand()
         st.markdown('<div class="gm-nav-section-label">Menu</div>', unsafe_allow_html=True)
@@ -80,6 +99,20 @@ def render_sidebar_nav(active: str):
             ):
                 st.session_state.current_page = item["key"]
                 st.rerun()
+
+            children = submenus.get(item["key"])
+            if children:
+                with st.container(key=f"submenu_{item['key']}"):
+                    for child in children:
+                        child_is_active = active == child["key"]
+                        if st.button(
+                            child["label"],
+                            use_container_width=True,
+                            type="primary" if child_is_active else "secondary",
+                            key=f"nav_child_{item['key']}_{child['key']}",
+                        ):
+                            st.session_state.current_page = child["key"]
+                            st.rerun()
 
 
 def render_app_header(title: str, subtitle: str = "", user_name: str = "", user_email: str = "",show_logout: bool = True) -> bool:

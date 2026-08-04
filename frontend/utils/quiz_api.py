@@ -159,6 +159,30 @@ def get_mastery_summary() -> dict:
         return {"success": False, "error": str(e)}
 
 
+def get_recommended_questions() -> dict:
+    """
+    Get adaptive practice questions recommended for the current user's
+    weakest units (backed by the Neo4j knowledge graph - see
+    backend/services/neo4j_service.py::get_recommended_questions).
+
+    Returns:
+        Dictionary with a "questions" list (id, question_text, unit,
+        bloom_level, options, mastery_status, target_level)
+    """
+    try:
+        url = f"{backend_endpoint}api/quiz/recommended-questions"
+        user_id = st.session_state.get("userId")
+        params = {"user_id": user_id}
+        response = httpx.get(url, params=params, timeout=30)
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"success": False, "error": f"Status code: {response.status_code}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def get_quiz_history(limit: int = 10) -> dict:
     """
     Get user quiz history

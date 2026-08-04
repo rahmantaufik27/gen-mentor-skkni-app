@@ -17,13 +17,18 @@ from utils.state import save_persistent_state
 from utils.auth_guard import get_current_user
 from utils.theme import render_sidebar_nav, render_app_header
 from components.mastery_dashboard import render_mastery_dashboard
-from components.learning_path import render_learning_path
+from components.learning_path import get_learning_path_submenu
 
 PAGE_TITLES = {
     "profile": ("My Profile", "Your account and mastery-level overview"),
     "learning_path": ("Learning Path", "Curated resources based on your quiz results"),
+    "reading_materials": ("Reading Materials", "Materials recommended based on your mastery gaps"),
+    "chatbot": ("Learning with Chatbot Assistance", "Chat with an AI tutor for personalized help"),
+    "exercises": ("Exercises with Generative Questions", "Adaptive practice questions for your weakest units"),
     "quiz": ("Quiz Assessment", "Test your knowledge across all six units"),
 }
+# Admin is a separate module (pages/admin_login.py + pages/admin_dashboard.py)
+# with its own login - deliberately not part of this learner hub's routing.
 
 # ============================================================================
 # INITIALIZE PAGE SELECTION
@@ -34,7 +39,10 @@ if "current_page" not in st.session_state:
 # ============================================================================
 # LEFT NAVIGATION SIDEBAR
 # ============================================================================
-render_sidebar_nav(active=st.session_state.current_page)
+render_sidebar_nav(
+    active=st.session_state.current_page,
+    submenus={"learning_path": get_learning_path_submenu()},
+)
 
 # ============================================================================
 # TOP HEADER (title + user chip + logout)
@@ -67,30 +75,44 @@ if st.session_state.current_page == "quiz":
 
 elif st.session_state.current_page == "learning_path":
     # ====================================================================
-    # LEARNING PATH PAGE
+    # LEARNING PATH PAGE (landing page - submenu items below are their own
+    # dedicated full pages, not rendered here)
     # ====================================================================
     try:
         with open("pages/learning_path.py", "r", encoding="utf-8") as f:
             exec(f.read())
     except Exception as e:
         st.error(f"Failed to load Learning Path page: {str(e)}")
-    # with st.container(border=True):
-    #     st.markdown("""
-    #         #### 📚 Learning Materials & Resources
 
-    #         This section provides curated learning materials to help close the gaps
-    #         identified by your quiz results:
+elif st.session_state.current_page == "reading_materials":
+    # ====================================================================
+    # READING MATERIALS PAGE
+    # ====================================================================
+    try:
+        with open("pages/reading_materials.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Reading Materials page: {str(e)}")
 
-    #         - Reading materials organized by unit
-    #         - Learning with Chatbot Assistance
-    #         - Tracking Progress Learning
+elif st.session_state.current_page == "chatbot":
+    # ====================================================================
+    # LEARNING WITH CHATBOT ASSISTANCE PAGE
+    # ====================================================================
+    try:
+        with open("pages/chatbot.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Chatbot page: {str(e)}")
 
-    #     """)
-
-    #     st.info("Complete quizzes first to get personalized learning recommendations.")
-
-    # with st.container(border=True):
-    #     render_learning_path()
+elif st.session_state.current_page == "exercises":
+    # ====================================================================
+    # EXERCISES WITH GENERATIVE QUESTIONS PAGE
+    # ====================================================================
+    try:
+        with open("pages/exercises.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Exercises page: {str(e)}")
 
 else:  # profile (default)
     # ====================================================================

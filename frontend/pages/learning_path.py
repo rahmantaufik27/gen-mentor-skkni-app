@@ -10,7 +10,6 @@ Route Protection:
 import streamlit as st
 from utils.state import save_persistent_state
 from utils.auth_guard import require_authentication
-from components.learning_path import render_learning_path
 
 # ============================================================================
 # ROUTE PROTECTION - Require Authentication
@@ -62,7 +61,11 @@ def render_learning_path_page():
         st.info("Complete quizzes first to get personalized learning recommendations.")
 
     with st.container(border=True):
-        render_learning_path()
+        st.markdown("###### Get Started")
+        st.info(
+            "👈 Choose a learning method from the sidebar: **Reading Materials**, "
+            "**Learning with Chatbot Assistance**, or **Exercises with Generative Questions**."
+        )
 
 # Render the page
 render_learning_path_page()
