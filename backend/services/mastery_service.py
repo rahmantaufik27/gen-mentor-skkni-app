@@ -22,6 +22,16 @@ resolve_strategy() returns one strategy object per call; every per-unit
 inference goes through strategy.new_instance_for_unit(unit_code) first, so
 DBN gets a fresh per-unit instance (see mastery_inference.py) and no
 unit's observations/state can leak into another's.
+
+Adaptive recommendations between Tests: get_effective_remedial_units()
+(built on get_practice_mastered_units_since_last_test()) is the single
+shared source PracticeService, MaterialsService, and the Practice
+Analytics dashboard all read to decide what's still worth recommending -
+a unit is Remedial per the latest Test AND not yet demonstrated Mastered
+in Practice since that Test. This never writes to user_mastery_level or
+Neo4j - Test remains the sole OFFICIAL mastery authority; it's a read-only
+refinement layered on top using only the existing
+practice_attempts/practice_attempt_units/quiz_attempts tables.
 """
 
 import json
@@ -278,11 +288,93 @@ class MasteryService:
 
         current_status = "PASS" if (latest_attempt and latest_attempt[2]) else "FAIL"
 
+        # Adaptive set for the Practice Analytics dashboard's "Currently
+        # Recommended" (also the shared basis for get_effective_remedial_units()
+        # below, used by PracticeService/MaterialsService) - computed inline
+        # from the `units` list already built above (no extra Test query),
+        # deliberately kept separate from units[].mastery_status, which
+        # stays Test-only so Test Analytics is never affected by Practice.
+        test_remedial_units = {u["unit_code"] for u in units if u["mastery_status"] == REMEDIAL}
+        effective_remedial_units = (
+            sorted(test_remedial_units - self.get_practice_mastered_units_since_last_test(user_id))
+            if latest_attempt else []
+        )
+
         return {
             "success": True,
             "has_attempts": latest_attempt is not None,
             "total_attempts": total_attempts,
             "latest_attempt_date": latest_attempt[1].isoformat() if (latest_attempt and latest_attempt[1]) else None,
             "current_status": current_status,
-            "units": units
+            "units": units,
+            "effective_remedial_units": effective_remedial_units,
         }
+
+    def get_practice_mastered_units_since_last_test(self, user_id: str) -> set:
+        """
+        Truncated unit_codes the learner has demonstrated Mastered-level
+        performance for IN PRACTICE (per the SAME Mastered/Remedial rule
+        as Test - inferred level >= target_level) since their latest
+        completed Test. Read-only: never writes to user_mastery_level or
+        Neo4j - Test remains the sole OFFICIAL source of truth (see module
+        docstring). A unit's inclusion here is dropped the moment a newer
+        Test exists, since Test's fresh Neo4j sync then reflects that
+        unit's true current status directly.
+        """
+        try:
+            latest_test_rows = execute_query(
+                "SELECT MAX(completed_at) FROM quiz_attempts WHERE user_id = %s AND completed_at IS NOT NULL",
+                (user_id,),
+                fetch=True,
+            )
+            latest_test_at = latest_test_rows[0][0] if latest_test_rows else None
+
+            rows = execute_query(
+                """
+                SELECT pa.completed_at, pau.unit_code, pau.unit_mastery_level
+                FROM practice_attempts pa
+                JOIN practice_attempt_units pau ON pau.practice_attempt_id = pa.id
+                WHERE pa.user_id = %s
+                ORDER BY pa.completed_at DESC
+                """,
+                (user_id,),
+                fetch=True,
+            ) or []
+
+            mastered_since_test: set = set()
+            seen_units: set = set()
+            for completed_at, unit_code, unit_mastery_level in rows:
+                if unit_code in seen_units:
+                    continue  # only the most recent Practice record per unit matters
+                seen_units.add(unit_code)
+                if latest_test_at and completed_at <= latest_test_at:
+                    continue  # a Test has happened since - defer entirely to Neo4j's fresh status
+                target = self.targets.get(unit_code)
+                if target and bloom_level_rank(unit_mastery_level) >= bloom_level_rank(target):
+                    mastered_since_test.add(unit_code)
+            return mastered_since_test
+        except Exception as e:
+            print(f"Warning: Failed to compute practice-mastered units for user {user_id}: {str(e)}")
+            return set()
+
+    def get_effective_remedial_units(self, user_id: str) -> List[str]:
+        """
+        Truncated unit_codes that are Remedial per the latest Test AND not
+        yet Practice-Mastered since that Test - the adaptive recommendation
+        set driving Practice, Reading Materials, and the Practice Analytics
+        dashboard's "Currently Recommended" between Tests. The Placement
+        Test (or any Test) is the baseline; from the first Practice session
+        onward, this set narrows as units are demonstrated Mastered in
+        Practice, until the next Test re-evaluates everything.
+
+        Public entry point for other services (MaterialsService,
+        PracticeService) - delegates to get_user_mastery_summary(), which
+        computes this same set inline while building the dashboard payload,
+        so there's exactly one implementation and no duplicate queries.
+
+        Returns:
+            Sorted list of truncated unit_codes (empty if the user has
+            never completed a Test, or if every unit is already covered).
+        """
+        summary = self.get_user_mastery_summary(user_id)
+        return summary.get("effective_remedial_units", [])

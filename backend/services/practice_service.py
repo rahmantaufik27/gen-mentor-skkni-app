@@ -29,11 +29,14 @@ while writing to completely separate tables.
 Session-to-session adaptivity: once a unit's Practice-inferred level meets
 its target (Mastered, by the exact same rule as Test - see
 MasteryService MASTERED/REMEDIAL), that unit is excluded from every
-subsequent Practice session (see _get_practice_mastered_units) until a
-NEW Test re-evaluates it - Neo4j's MASTERY.mastery_status (Test-driven)
-remains the sole OFFICIAL source of truth and is never written to by
-Practice; this is a read-only refinement layered on top, using only the
-existing practice_attempts/practice_attempt_units/quiz_attempts tables.
+subsequent Practice session (see
+MasteryService.get_practice_mastered_units_since_last_test, the single
+shared implementation also used by MaterialsService and the Practice
+Analytics dashboard) until a NEW Test re-evaluates it - Neo4j's
+MASTERY.mastery_status (Test-driven) remains the sole OFFICIAL source of
+truth and is never written to by Practice; this is a read-only refinement
+layered on top, using only the existing
+practice_attempts/practice_attempt_units/quiz_attempts tables.
 """
 
 import re
@@ -83,9 +86,9 @@ class PracticeService:
 
         On top of that, units the learner has already reached target on
         IN PRACTICE since their latest Test are excluded too (see
-        _get_practice_mastered_units) - e.g. if Unit A is inferred
-        Mastered in Practice session 1, it won't appear in session 2
-        unless a new Test re-evaluates it.
+        MasteryService.get_practice_mastered_units_since_last_test) - e.g.
+        if Unit A is inferred Mastered in Practice session 1, it won't
+        appear in session 2 unless a new Test re-evaluates it.
 
         Returns:
             Dictionary with session info and first question, or error.
@@ -97,7 +100,7 @@ class PracticeService:
         try:
             records = self.neo4j_service.get_recommended_questions(user_id)
 
-            practice_mastered = self._get_practice_mastered_units(user_id)
+            practice_mastered = self.mastery_service.get_practice_mastered_units_since_last_test(user_id)
             excluded_by_practice = False
             if practice_mastered:
                 filtered = [r for r in records if _truncate_unit_code(r.get("unit_code")) not in practice_mastered]
@@ -146,7 +149,7 @@ class PracticeService:
           units' mastery_status == "Mastered") -> all_mastered=True,
           direct the learner to their next Test.
         - Some Remedial units remain per Test, but every one of them was
-          already excluded by _get_practice_mastered_units
+          already excluded by MasteryService.get_practice_mastered_units_since_last_test
           (excluded_by_practice=True) -> distinct message pointing at a
           Test to confirm/refresh the official status.
         - Any other reason (e.g. a Remedial unit with no eligible question
@@ -186,60 +189,6 @@ class PracticeService:
             "all_mastered": False,
             "error": "No practice questions are available for your units right now. Please try again later.",
         }
-
-    def _get_practice_mastered_units(self, user_id: str) -> set:
-        """
-        Truncated unit_codes the learner has already demonstrated
-        Mastered-level performance for IN PRACTICE (this unit's most
-        recent practice_attempt_units.unit_mastery_level meets or exceeds
-        its knowledge_target.json target - the identical Mastered rule
-        Test uses) SINCE their latest completed Test.
-
-        Neo4j's MASTERY.mastery_status (Test-driven) is never written to
-        by this - it remains the sole official source of truth. This is a
-        read-only, session-to-session refinement purely for deciding what
-        to exclude from the NEXT Practice session, using only the existing
-        practice_attempts/practice_attempt_units/quiz_attempts tables (no
-        schema change). A unit's exclusion is dropped the moment a newer
-        Test attempt exists, since Test's fresh Neo4j sync then reflects
-        that unit's true current status directly.
-        """
-        try:
-            latest_test_rows = execute_query(
-                "SELECT MAX(completed_at) FROM quiz_attempts WHERE user_id = %s AND completed_at IS NOT NULL",
-                (user_id,),
-                fetch=True,
-            )
-            latest_test_at = latest_test_rows[0][0] if latest_test_rows else None
-
-            rows = execute_query(
-                """
-                SELECT pa.completed_at, pau.unit_code, pau.unit_mastery_level
-                FROM practice_attempts pa
-                JOIN practice_attempt_units pau ON pau.practice_attempt_id = pa.id
-                WHERE pa.user_id = %s
-                ORDER BY pa.completed_at DESC
-                """,
-                (user_id,),
-                fetch=True,
-            ) or []
-
-            targets = self.mastery_service.targets  # truncated unit_code -> target_level
-            mastered_since_test: set = set()
-            seen_units: set = set()
-            for completed_at, unit_code, unit_mastery_level in rows:
-                if unit_code in seen_units:
-                    continue  # only the most recent Practice record per unit matters
-                seen_units.add(unit_code)
-                if latest_test_at and completed_at <= latest_test_at:
-                    continue  # a Test has happened since - defer entirely to Neo4j's fresh status
-                target = targets.get(unit_code)
-                if target and bloom_level_rank(unit_mastery_level) >= bloom_level_rank(target):
-                    mastered_since_test.add(unit_code)
-            return mastered_since_test
-        except Exception as e:
-            print(f"Warning: Failed to compute practice-mastered units for user {user_id}: {str(e)}")
-            return set()
 
     @staticmethod
     def _public_question(question: Dict, index: int, total: int) -> Dict:

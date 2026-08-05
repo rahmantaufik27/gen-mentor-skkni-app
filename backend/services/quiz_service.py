@@ -321,49 +321,88 @@ class QuizService:
     
     def get_user_quiz_history(self, user_id: str, limit: int = 10) -> Dict:
         """
-        Get quiz attempt history for a user.
-        
+        Get quiz attempt history for a user, including a detailed
+        per-question review for each attempt (question number, unit,
+        Bloom/Knowledge Level, the learner's answer, correctness) - the
+        same shape Practice's Review Practice uses (see
+        PracticeService._build_review), so Test History and Practice
+        Review share one consistent layout on the frontend.
+
+        quiz_attempt_details has no explicit sequence column, so each
+        attempt's original question order is recovered deterministically
+        from QuizGenerator.PREFERRED_UNITS + BLOOM_LEVELS - the exact
+        fixed order generate_quiz() used to build it in the first place.
+
         Args:
             user_id: User UUID
             limit: Number of recent attempts to retrieve
-            
+
         Returns:
-            Dictionary with quiz history, or error
+            Dictionary with attempts: [{attempt_id, started_at,
+            completed_at, total_questions, correct_answers, total_score,
+            status, review}], or error
         """
         try:
-            # NOTE: total_questions/correct_answers/pass_fail are not columns on
-            # quiz_attempts (that data lives in quiz_attempt_details / the
-            # `passed` boolean) - this pre-existing query will fail at runtime.
-            # Left as-is per "preserve existing behavior"; use get_user_mastery_summary()
-            # for a working dashboard-oriented view of a user's attempts.
             query = """
-            SELECT id, started_at, completed_at, total_questions, correct_answers, total_score, pass_fail
+            SELECT id, started_at, completed_at, score, passed
             FROM quiz_attempts
             WHERE user_id = %s
-            ORDER BY completed_at DESC
+            ORDER BY completed_at DESC NULLS LAST, started_at DESC
             LIMIT %s
             """
-            
             results = execute_query(query, (user_id, limit), fetch=True)
-            
+
             if not results:
                 return {"success": True, "attempts": []}
-            
-            attempts = [
-                {
-                    "attempt_id": row[0],
-                    "started_at": row[1],
-                    "completed_at": row[2],
-                    "total_questions": row[3],
-                    "correct_answers": row[4],
-                    "total_score": row[5],
-                    "status": row[6]
-                }
-                for row in results
-            ]
-            
+
+            unit_order = {unit: i for i, unit in enumerate(QuizGenerator.PREFERRED_UNITS)}
+            bloom_order = {level: i for i, level in enumerate(QuizGenerator.BLOOM_LEVELS)}
+
+            attempts = []
+            for attempt_id, started_at, completed_at, score, passed in results:
+                detail_rows = execute_query(
+                    """
+                    SELECT question_id, unit_code, bloom_level, selected_answer, correct_answer, is_correct
+                    FROM quiz_attempt_details
+                    WHERE attempt_id = %s
+                    """,
+                    (attempt_id,),
+                    fetch=True,
+                ) or []
+                detail_rows.sort(key=lambda r: (
+                    unit_order.get(r[1], len(unit_order)),
+                    bloom_order.get((r[2] or "").upper(), len(bloom_order)),
+                ))
+
+                review = []
+                correct_answers = 0
+                for idx, (question_id, unit_code, bloom_level, selected_answer, _correct_answer, is_correct) in enumerate(detail_rows):
+                    if is_correct:
+                        correct_answers += 1
+                    question = self.question_loader.get_question_by_id(question_id)
+                    selected_choice = next((c for c in question.choices if c.id == selected_answer), None) if question else None
+                    user_answer = f"{selected_choice.id}. {selected_choice.text}" if selected_choice else (selected_answer or "-")
+                    review.append({
+                        "question_number": idx + 1,
+                        "unit_code": unit_code,
+                        "bloom_level": bloom_level,
+                        "user_answer": user_answer,
+                        "is_correct": bool(is_correct),
+                    })
+
+                attempts.append({
+                    "attempt_id": attempt_id,
+                    "started_at": started_at.isoformat() if started_at else None,
+                    "completed_at": completed_at.isoformat() if completed_at else None,
+                    "total_questions": len(detail_rows),
+                    "correct_answers": correct_answers,
+                    "total_score": score,
+                    "status": "PASS" if passed else "FAIL",
+                    "review": review,
+                })
+
             return {"success": True, "attempts": attempts}
-        
+
         except Exception as e:
             return {"success": False, "error": f"Failed to retrieve quiz history: {str(e)}"}
 

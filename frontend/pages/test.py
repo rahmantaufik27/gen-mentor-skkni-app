@@ -16,6 +16,7 @@ or disabled - only the Start button on render_test_start() is, alongside an
 inline message explaining why.
 """
 
+import pandas as pd
 import streamlit as st
 from utils.quiz_api import (
     start_quiz, get_question, submit_answer,
@@ -215,7 +216,7 @@ def render_test_progress():
 
         st.divider()
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2 = st.columns(2)
 
         # Submit answer
         with col1:
@@ -244,13 +245,8 @@ def render_test_progress():
                 else:
                     st.error(f"Failed to submit answer: {submit_result.get('error')}")
 
-        # View progress
-        with col2:
-            if st.button("View Progress", use_container_width=True):
-                st.info(f"Answered: {question_number} / {total_questions}")
-
         # Quit test
-        with col3:
+        with col2:
             if st.button("Exit Test", use_container_width=True):
                 st.session_state.test_started = False
                 st.session_state.test_current_question = 0
@@ -341,8 +337,10 @@ def render_test_results():
 
     # Action buttons - re-check gating now that this attempt just completed
     gating = get_learning_gating()
-    # col1, col2, col3 = st.columns(3)
-    col1, col2 = st.columns(2)
+    if "test_show_review" not in st.session_state:
+        st.session_state.test_show_review = False
+    col1, col2, col3 = st.columns(3)
+    # col1, col2 = st.columns(2)
 
     with col1:
         if gating["test_enabled"]:
@@ -363,11 +361,17 @@ def render_test_results():
                 st.session_state.current_page = "practice"
                 st.rerun()
 
+    with col2:
+        review_label = "📋 Hide Test Review" if st.session_state.test_show_review else "View Test Review"
+        if st.button(review_label, use_container_width=True):
+            st.session_state.test_show_review = not st.session_state.test_show_review
+            st.rerun()
+
     # with col2:
     #     if st.button("View Test History", use_container_width=True):
     #         show_test_history()
 
-    with col2:
+    with col3:
         if st.button("Go Home", use_container_width=True):
             st.session_state.test_started = False
             st.session_state.test_current_question = 0
@@ -377,13 +381,23 @@ def render_test_results():
             st.session_state.current_page = "profile"
             st.rerun()
 
+    if st.session_state.test_show_review:
+        show_test_history()
+
 
 def show_test_history():
-    """Show user's test history"""
+    """
+    Show user's test history. Each attempt (collapsed by default via
+    st.expander - detail only renders on demand when expanded) includes a
+    detailed Question Review table in the same format as Practice Review
+    (see components/practice.py::_render_practice_review) - Question No. /
+    Unit / Question Knowledge Level / User Answer / Result.
+    """
     history_result = get_quiz_history(limit=10)
 
     if history_result.get("success"):
         attempts = history_result.get("attempts", [])
+        code_map = _get_code_map()
 
         st.subheader("Your Test History")
 
@@ -403,6 +417,22 @@ def show_test_history():
                         st.write(f"**Status:** {status}")
 
                     st.write(f"**Date:** {attempt.get('completed_at')}")
+
+                    review = attempt.get("review", [])
+                    if review:
+                        st.markdown("")
+                        st.markdown("###### Question Review")
+                        review_df = pd.DataFrame([
+                            {
+                                "Question No.": r["question_number"],
+                                "Unit": code_map.get(r["unit_code"], r["unit_code"]),
+                                "Question Knowledge Level": r["bloom_level"],
+                                "User Answer": r["user_answer"],
+                                "Result": "✅ Correct" if r["is_correct"] else "❌ Wrong",
+                            }
+                            for r in review
+                        ])
+                        st.dataframe(review_df, use_container_width=True, hide_index=True)
         else:
             st.info("No test attempts yet")
     else:

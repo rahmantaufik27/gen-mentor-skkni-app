@@ -207,13 +207,15 @@ def _render_practice_analytics(code_map: dict):
         return
 
     mastery_summary = get_mastery_summary()
-    # Recommendations only exist once a Test has synced real mastery data to
-    # the knowledge graph (see backend/services/neo4j_service.py::
-    # get_recommended_questions) - before that, every unit defaults to
-    # Remedial in the summary even though there's nothing to recommend yet,
-    # so gate on has_attempts to avoid showing a misleading count.
+    # Units Remedial per the latest Test AND not yet demonstrated Mastered
+    # in Practice since that Test (see MasteryService.get_effective_remedial_units) -
+    # this is the SAME adaptive set Practice itself recommends from, so
+    # "Currently recommended" here tracks the latest Practice result, not
+    # just the Placement Test, once Practice sessions exist. Recommendations
+    # only exist once a Test has synced real mastery data to the knowledge
+    # graph, so gate on has_attempts to avoid showing a misleading count.
     recommended_units = (
-        [u["unit_code"] for u in mastery_summary.get("units", []) if u.get("mastery_status") == "Remedial"]
+        mastery_summary.get("effective_remedial_units", [])
         if mastery_summary.get("success") and mastery_summary.get("has_attempts") else []
     )
     # target_level per unit, for the Practice History Status column - same
@@ -238,7 +240,7 @@ def _render_practice_analytics(code_map: dict):
         st.metric(
             label="Recommended Unit(s)",
             value=len(recommended_units),
-            help="Units currently flagged Remedial - the same units Practice questions are sourced from"
+            help="Units still Remedial after your latest Practice results (or your latest Test, before your first Practice session) - the same units Practice questions are sourced from"
         )
 
     if recommended_units:

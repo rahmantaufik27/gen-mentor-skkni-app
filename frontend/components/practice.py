@@ -12,10 +12,13 @@ get_recommended_questions), via a separate session-based backend
 quiz_attempts/user_mastery_level. Test remains the sole source of mastery
 truth; Practice is purely for reinforcement.
 
-On completion, results include a Review Practice section (per-question
-detail + each covered unit's inferred Knowledge Level, via the same
-Manual/DBN strategy Test uses) shown before the learner returns to the
-dashboard - see _render_practice_review().
+On completion, a "View Practice Review" button opens, on demand, a Review
+Practice section (per-question detail + each covered unit's inferred
+Knowledge Level, via the same Manual/DBN strategy Test uses) - not shown
+automatically, so the results screen stays focused on the score summary
+by default. See _render_practice_review(); the same table layout is also
+used by pages/test.py::show_test_history() for Test History's per-attempt
+review, so the two stay visually consistent.
 """
 
 import pandas as pd
@@ -46,6 +49,8 @@ def initialize_practice_state():
         st.session_state.practice_completed = False
     if "practice_result" not in st.session_state:
         st.session_state.practice_result = None
+    if "practice_show_review" not in st.session_state:
+        st.session_state.practice_show_review = False
 
 
 def render_practice():
@@ -93,7 +98,8 @@ def _render_practice_start():
     with col2:
         st.info("""
         ✅ **Tips for Success**
-        - Practice targets the units flagged Remedial on your latest Test
+        - Practice targets units still Remedial after your latest Practice
+          results (or your latest Test, before your first Practice session)
         - Read each question carefully
         - Results here don't affect your Test history or mastery status
         - Take a Test again once you feel ready
@@ -205,9 +211,10 @@ def _render_practice_progress():
 
 def _render_practice_results():
     """
-    Render practice results, followed by the Review Practice section
-    (per-question review + per-unit inferred Knowledge Level) before the
-    learner returns to the dashboard - see PracticeService.complete_practice.
+    Render practice results. The Review Practice section (per-question
+    review + per-unit inferred Knowledge Level) is NOT shown automatically -
+    it's opened on demand via the "View Practice Review" button, so the
+    results screen stays focused on the score summary by default.
     """
     result_data = st.session_state.practice_result or {}
 
@@ -238,10 +245,7 @@ def _render_practice_results():
         st.success("Nice work! Keep practicing to strengthen these units, then try a Test when you're ready.")
 
     st.markdown("")
-    _render_practice_review(result_data)
-
-    st.markdown("")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         if st.button("Practice Again", use_container_width=True, type="primary"):
@@ -250,17 +254,28 @@ def _render_practice_results():
             st.session_state.practice_session_id = None
             st.session_state.practice_completed = False
             st.session_state.practice_result = None
+            st.session_state.practice_show_review = False
             st.rerun()
 
     with col2:
+        review_label = "📋 Hide Practice Review" if st.session_state.practice_show_review else "View Practice Review"
+        if st.button(review_label, use_container_width=True):
+            st.session_state.practice_show_review = not st.session_state.practice_show_review
+            st.rerun()
+
+    with col3:
         if st.button("Back to Dashboard", use_container_width=True):
             st.session_state.practice_started = False
             st.session_state.practice_current_question = 0
             st.session_state.practice_session_id = None
             st.session_state.practice_completed = False
             st.session_state.practice_result = None
+            st.session_state.practice_show_review = False
             st.session_state.current_page = "profile"
             st.rerun()
+
+    if st.session_state.practice_show_review:
+        _render_practice_review(result_data)
 
 
 def _render_practice_review(result_data: dict):
