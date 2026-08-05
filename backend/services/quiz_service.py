@@ -383,6 +383,20 @@ class QuizService:
         except Exception as e:
             return {"success": False, "error": f"Failed to retrieve mastery summary: {str(e)}"}
 
+    def get_unit_code_map(self) -> Dict:
+        """
+        Get the truncated -> full unit_code map (static/global, not
+        user-specific) so the frontend can display full unit codes
+        consistently (e.g. 'J.620100.005.02') wherever a unit_code appears.
+
+        Returns:
+            Dictionary with a "unit_codes" map, or error
+        """
+        try:
+            return {"success": True, "unit_codes": self.mastery_service.get_unit_code_map()}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to retrieve unit code map: {str(e)}"}
+
     def get_recommended_questions(self, user_id: str) -> Dict:
         """
         Get practice questions recommended from the Neo4j knowledge graph:

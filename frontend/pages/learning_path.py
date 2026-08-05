@@ -25,7 +25,7 @@ def render_learning_path_page():
         st.markdown("#### 📚 Learning Materials & Resources")
         st.markdown("""
             This section provides curated learning materials to help close the gaps
-            identified by your quiz results:
+            identified by your test results:
             - Tracking Progress Learning
             - Reading materials organized by unit
             - Learning with Chatbot Assistance
@@ -58,13 +58,13 @@ def render_learning_path_page():
                 help="Your average score on practice exercises"
             )
         
-        st.info("Complete quizzes first to get personalized learning recommendations.")
+        st.info("Complete a Test first to get personalized learning recommendations.")
 
     with st.container(border=True):
         st.markdown("###### Get Started")
         st.info(
             "👈 Choose a learning method from the sidebar: **Reading Materials**, "
-            "**Learning with Chatbot Assistance**, or **Exercises with Generative Questions**."
+            "**Learning with Chatbot Assistance**, or **Practice with Generative Questions**."
         )
 
 # Render the page

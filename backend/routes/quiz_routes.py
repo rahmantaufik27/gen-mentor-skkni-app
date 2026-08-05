@@ -95,6 +95,13 @@ def init_quiz_routes(app, controller: QuizController):
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 
+    @quiz_bp.route("/unit-codes", methods=["GET"])
+    def get_unit_code_map():
+        """Get the truncated -> full unit_code map (static, not user-specific)"""
+        result = controller.get_unit_code_map()
+        status_code = 200 if result.get("success") else 400
+        return jsonify(result), status_code
+
     @quiz_bp.route("/recommended-questions", methods=["GET"])
     def get_recommended_questions():
         """Get practice questions recommended from the Neo4j knowledge graph"""

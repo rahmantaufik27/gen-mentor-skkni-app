@@ -3,10 +3,17 @@ Learner Profile Page - Main Hub with Navigation
 
 This is the main application hub after login.
 It provides navigation to:
-- Quiz page
-- Learning Path page
+- Test page (formerly "Quiz")
+- Learning Path page (Reading Materials / Chatbot / Practice submenu)
 - Account/Profile information
 - Logout functionality
+
+Test and Practice eligibility is gated (see utils/gating.py): the first
+Test is the Placement Test; afterward Test stays eligible only while all
+units are Mastered, otherwise Test is ineligible and Practice is eligible.
+Both stay visible/clickable in the sidebar at all times - the gate only
+disables the Start button on each page, with an inline message explaining
+why (see pages/test.py / components/practice.py).
 
 NOTE: main.py handles authentication check, st.set_page_config(), and theme
 injection. This code is exec'd by main.py, so don't duplicate those calls.
@@ -16,6 +23,7 @@ import streamlit as st
 from utils.state import save_persistent_state
 from utils.auth_guard import get_current_user
 from utils.theme import render_sidebar_nav, render_app_header
+from utils.gating import get_learning_gating
 from components.mastery_dashboard import render_mastery_dashboard
 from components.learning_path import get_learning_path_submenu
 
@@ -24,8 +32,8 @@ PAGE_TITLES = {
     "learning_path": ("Learning Path", "Curated resources based on your quiz results"),
     "reading_materials": ("Reading Materials", "Materials recommended based on your mastery gaps"),
     "chatbot": ("Learning with Chatbot Assistance", "Chat with an AI tutor for personalized help"),
-    "exercises": ("Exercises with Generative Questions", "Adaptive practice questions for your weakest units"),
-    "quiz": ("Quiz Assessment", "Test your knowledge across all six units"),
+    "practice": ("Practice with Generative Questions", "Adaptive practice questions for your weakest units"),
+    "test": ("Test", "Test your knowledge across all six units"),
 }
 # Admin is a separate module (pages/admin_login.py + pages/admin_dashboard.py)
 # with its own login - deliberately not part of this learner hub's routing.
@@ -35,6 +43,16 @@ PAGE_TITLES = {
 # ============================================================================
 if "current_page" not in st.session_state:
     st.session_state.current_page = "profile"
+
+# ============================================================================
+# TEST / PRACTICE ELIGIBILITY (see utils/gating.py) - the first Test is the
+# Placement Test; Test stays eligible only while all units are Mastered,
+# otherwise Test is ineligible and Practice is eligible instead. Used below
+# for the Placement Test header and passed to each page, which disables its
+# own Start button rather than the sidebar entry - Test/Practice stay
+# visible and clickable at all times.
+# ============================================================================
+gating = get_learning_gating()
 
 # ============================================================================
 # LEFT NAVIGATION SIDEBAR
@@ -48,7 +66,10 @@ render_sidebar_nav(
 # TOP HEADER (title + user chip + logout)
 # ============================================================================
 current_user = get_current_user()
-title, subtitle = PAGE_TITLES.get(st.session_state.current_page, PAGE_TITLES["profile"])
+if st.session_state.current_page == "test" and gating["is_placement_test"]:
+    title, subtitle = "Placement Test", "Your first Test assesses your starting knowledge across all six units"
+else:
+    title, subtitle = PAGE_TITLES.get(st.session_state.current_page, PAGE_TITLES["profile"])
 
 if render_app_header(title, subtitle, user_name=current_user.get("user_name") or "", user_email=current_user.get("user_email") or ""):
     st.session_state.logged_in = False
@@ -63,15 +84,15 @@ if render_app_header(title, subtitle, user_name=current_user.get("user_name") or
 # RENDER SELECTED PAGE
 # ============================================================================
 
-if st.session_state.current_page == "quiz":
+if st.session_state.current_page == "test":
     # ====================================================================
-    # QUIZ PAGE
+    # TEST PAGE
     # ====================================================================
     try:
-        with open("pages/quiz.py", "r", encoding="utf-8") as f:
+        with open("pages/test.py", "r", encoding="utf-8") as f:
             exec(f.read())
     except Exception as e:
-        st.error(f"Failed to load Quiz page: {str(e)}")
+        st.error(f"Failed to load Test page: {str(e)}")
 
 elif st.session_state.current_page == "learning_path":
     # ====================================================================
@@ -104,15 +125,15 @@ elif st.session_state.current_page == "chatbot":
     except Exception as e:
         st.error(f"Failed to load Chatbot page: {str(e)}")
 
-elif st.session_state.current_page == "exercises":
+elif st.session_state.current_page == "practice":
     # ====================================================================
-    # EXERCISES WITH GENERATIVE QUESTIONS PAGE
+    # PRACTICE WITH GENERATIVE QUESTIONS PAGE
     # ====================================================================
     try:
-        with open("pages/exercises.py", "r", encoding="utf-8") as f:
+        with open("pages/practice.py", "r", encoding="utf-8") as f:
             exec(f.read())
     except Exception as e:
-        st.error(f"Failed to load Exercises page: {str(e)}")
+        st.error(f"Failed to load Practice page: {str(e)}")
 
 else:  # profile (default)
     # ====================================================================
@@ -129,7 +150,6 @@ else:  # profile (default)
 
     # st.markdown("")
 
-    # Display mastery-level dashboard
-    with st.container(border=True):
-        st.markdown("#### 📊 Mastery Level Dashboard")
-        render_mastery_dashboard()
+    # Display Test Analytics + Practice Analytics dashboard (each section
+    # owns its own bordered container/header - see components/mastery_dashboard.py)
+    render_mastery_dashboard()

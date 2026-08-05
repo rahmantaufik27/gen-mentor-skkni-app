@@ -34,7 +34,9 @@ Design notes:
 
 import logging
 import os
+import random
 import re
+from collections import defaultdict
 from logging.handlers import RotatingFileHandler
 from typing import Dict, List, Optional
 
@@ -244,26 +246,74 @@ class Neo4jService:
 
     def get_recommended_questions(self, user_id: str) -> List[Dict]:
         """
-        Questions (Evaluation nodes) for Remedial units at the user's current
-        knowledge_level for that unit (or C1 if the unit has never been
-        attempted). Options are included as plain text; which option is
-        correct is intentionally omitted from the response.
+        Questions (Evaluation nodes) for Remedial units, across the FULL
+        C1-C6 Bloom range for every such unit - never capped at
+        target_level. target_level (from knowledge_target.json, synced
+        onto the MASTERY relationship's target_level property by
+        MasteryService) is only the MASTERY THRESHOLD used elsewhere to
+        decide Mastered vs Remedial (and may change) - it is not a ceiling
+        on which Knowledge Levels Practice can assess. Capping the range
+        here would make it structurally impossible for the DBN to ever
+        place posterior mass above that cap (no evidence above it could
+        ever be observed), so every unit's own DBN
+        (services/mastery_inference.py::DBNMasteryInference) gets a real
+        chance to estimate anywhere across its full C1-C6 hidden-state
+        space. Options are included as plain text.
+
+        Randomized per call: when a unit has multiple candidate questions
+        at the same Bloom level, one is chosen at random (mirrors
+        QuizGenerator.generate_quiz()'s random.choice(available) pattern)
+        so repeated Practice attempts surface different questions instead
+        of the same fixed set every time.
+
+        Recommended UNIT order is preserved across attempts despite the
+        randomization: units are ordered by the user's CURRENT
+        knowledge_level for that unit (weakest first), then unit_code -
+        never by the individual question's own Bloom level. Within a
+        unit, its own selected questions are ordered sequentially C1 -> C6.
+
+        Includes correct_answer_text (the raw "<letter>. <text>" jawaban) for
+        internal server-side use only (see services/practice_service.py,
+        which checks Practice submissions against it) - QuizService.
+        get_recommended_questions() explicitly whitelists fields and does
+        not forward it to the public API.
         """
         records = self._run_query(
             """
             MATCH (u:User {id: $user_id})-[m:MASTERY]->(unit:Unit)-[:HAS_EVALUATION]->(e:Evaluation)
-            WHERE m.mastery_status = 'Remedial' AND e.bloom_level = coalesce(m.knowledge_level, 'C1')
+            WHERE m.mastery_status = 'Remedial'
             OPTIONAL MATCH (e)-[:HAS_OPTION]->(o:Option)
             WITH u, unit, m, e, collect(o.text) AS options
             RETURN elementId(e) AS question_id, e.soal AS question_text, e.bloom_level AS bloom_level,
-                   options, unit.kode AS unit_code, m.mastery_status AS mastery_status,
-                   m.target_level AS target_level
+                   options, e.jawaban AS correct_answer_text, unit.kode AS unit_code,
+                   m.mastery_status AS mastery_status, m.target_level AS target_level,
+                   coalesce(m.knowledge_level, 'C1') AS current_level
             """,
             {"user_id": user_id},
             purpose="recommend_questions",
         )
-        records.sort(key=lambda r: (_bloom_rank(r.get("bloom_level")), r.get("unit_code") or ""))
-        return records
+
+        # Group candidates by unit, then by Bloom level (C1-C6, uncapped),
+        # tracking each unit's current_level for the final sort.
+        current_level_by_unit: Dict[str, str] = {}
+        candidates_by_unit_level: Dict[str, Dict[str, List[Dict]]] = defaultdict(lambda: defaultdict(list))
+        for r in records:
+            unit_code = r.get("unit_code") or ""
+            bloom_level = (r.get("bloom_level") or "").upper()
+            current_level_by_unit[unit_code] = r.get("current_level") or "C1"
+            candidates_by_unit_level[unit_code][bloom_level].append(r)
+
+        selected: List[Dict] = []
+        for unit_code, by_level in candidates_by_unit_level.items():
+            for bloom_level, candidates in by_level.items():
+                selected.append(random.choice(candidates))
+
+        selected.sort(key=lambda r: (
+            _bloom_rank(current_level_by_unit.get(r.get("unit_code") or "")),
+            r.get("unit_code") or "",
+            _bloom_rank(r.get("bloom_level")),
+        ))
+        return selected
 
 
 _singleton: Optional[Neo4jService] = None

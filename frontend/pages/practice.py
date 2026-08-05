@@ -1,14 +1,15 @@
 """
-Exercises with Generative Questions Page
+Practice with Generative Questions Page
 
 Route Protection:
 - Requires authentication (redirects to login if not authenticated)
 - Only accessible to authenticated users
 
-Dedicated full page for the Exercises with Generative Questions learning
-method - reachable directly from the Learning Path submenu in the sidebar.
-Recommendation logic is unchanged - see components/exercises.py, backed by
-the existing GET /api/quiz/recommended-questions endpoint.
+Dedicated full page for the Practice learning method - reachable directly
+from the Learning Path submenu in the sidebar. Test/Practice eligibility
+(see utils/gating.py) is enforced inside components/practice.py's start
+screen: the page and sidebar menu stay visible/clickable, and only the
+Start button is disabled (with an inline message) when not eligible.
 """
 
 import streamlit as st
@@ -21,4 +22,4 @@ from components.learning_path import LEARNING_METHODS
 require_authentication()
 
 with st.container(border=True):
-    LEARNING_METHODS["exercises"]["render"]()
+    LEARNING_METHODS["practice"]["render"]()

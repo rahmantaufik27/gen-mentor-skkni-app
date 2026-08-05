@@ -9,9 +9,19 @@ or the dashboard.
 
 Which strategy runs for a given user is decided by their inference_method
 preference on the `users` table (see AuthenticationService.get_inference_method),
-never by user_mastery_level. Only 'Manual' has a real implementation today;
-'DBN' is read and honored as the preference, but resolves to the manual
-strategy until the DBN engine is built (see _resolve_strategy below).
+never by user_mastery_level. 'Manual' runs the rule-based strategy; 'DBN'
+runs a per-unit Dynamic Bayesian Network (Forward Algorithm over
+data/dbn_config.json's prior/transition/emission) - see resolve_strategy
+below. resolve_strategy() is also called by PracticeService (Practice runs
+the exact same Manual/DBN strategy over its own session data - see
+services/practice_service.py::_save_practice_attempt - but never persists
+to user_mastery_level). Both strategies consume the exact same per-unit
+bloom_correctness data read from quiz_attempt_details, so this file's
+query/persistence/Neo4j sync flow is identical regardless of which one runs.
+resolve_strategy() returns one strategy object per call; every per-unit
+inference goes through strategy.new_instance_for_unit(unit_code) first, so
+DBN gets a fresh per-unit instance (see mastery_inference.py) and no
+unit's observations/state can leak into another's.
 """
 
 import json
@@ -22,11 +32,12 @@ from config.database import execute_query
 from services.mastery_inference import (
     MasteryInferenceStrategy,
     ManualMasteryInference,
+    DBNMasteryInference,
     bloom_level_rank,
 )
 from services.quiz_generator import QuizGenerator
 from services.neo4j_service import get_neo4j_service
-from services.auth_service import AuthenticationService, INFERENCE_METHOD_MANUAL
+from services.auth_service import AuthenticationService, INFERENCE_METHOD_MANUAL, INFERENCE_METHOD_DBN
 
 # Canonical mastery_status values written to user_mastery_level and returned by the API
 MASTERED = "Mastered"
@@ -70,17 +81,38 @@ class MasteryService:
             full_unit_codes[truncated] = unit["unit_code"]
         return targets, full_unit_codes
 
-    def _resolve_strategy(self, user_id: str) -> MasteryInferenceStrategy:
+    def get_unit_code_map(self) -> Dict[str, str]:
+        """
+        Truncated (3-segment, Postgres-internal) -> full (4-segment, e.g.
+        'J.620100.005.02') unit_code, for every unit in knowledge_target.json.
+        Static/global (not user-specific) - the single source of truth the
+        frontend uses to display full unit codes consistently everywhere,
+        without changing what's actually stored internally (see
+        _truncate_unit_code - Postgres/Neo4j sync/dashboards keep using the
+        truncated code; only display is affected).
+        """
+        return dict(self.full_unit_codes)
+
+    def resolve_strategy(self, user_id: str) -> MasteryInferenceStrategy:
         """
         Load the user's inference_method preference from the users table
         (requirement: read from users, never from user_mastery_level) and
-        resolve it to the strategy that actually runs.
+        resolve it to the strategy that actually runs. Public: also called
+        by PracticeService so Practice runs the identical Manual/DBN
+        strategy Test does.
 
-        Only 'Manual' has a working implementation today. 'DBN' is read and
-        acknowledged, but until the DBN engine exists it falls back to the
-        manual strategy so quiz completion keeps working for every user
-        regardless of their setting. Wiring in a real DBN strategy later is
-        a one-line change here - no schema or UI changes needed.
+        'Manual' -> ManualMasteryInference (rule-based). 'DBN' ->
+        DBNMasteryInference (per-unit Forward Algorithm - see
+        mastery_inference.py). If DBN's config can't be loaded, or the
+        preference is unset/unrecognized, falls back to the default
+        strategy passed to __init__ (Manual) so quiz completion always
+        keeps working.
+
+        The returned object is a single strategy instance shared across
+        every unit in the caller's loop - callers MUST call
+        new_instance_for_unit(unit_code) on it before inferring each unit
+        so DBN gets proper per-unit isolation (see
+        mastery_inference.py::MasteryInferenceStrategy.new_instance_for_unit).
         """
         try:
             user_inference_method = AuthenticationService.get_inference_method(user_id)
@@ -92,8 +124,13 @@ class MasteryService:
 
         if user_inference_method == INFERENCE_METHOD_MANUAL:
             return ManualMasteryInference()
-        # Covers 'DBN' and any unset/unrecognized value - manual is the
-        # only working engine today.
+        if user_inference_method == INFERENCE_METHOD_DBN:
+            try:
+                return DBNMasteryInference()
+            except Exception as e:
+                print(f"Warning: Failed to initialize DBN inference for user {user_id}, falling back to default: {str(e)}")
+                return self.inference_strategy
+        # Unset/unrecognized preference - fall back to the default strategy.
         return self.inference_strategy
 
     def compute_and_save_unit_mastery(self, attempt_id: str, user_id: str) -> List[Dict]:
@@ -106,7 +143,7 @@ class MasteryService:
             Per-unit results: unit_code, unit_score, unit_mastery_level,
             target_level, mastery_status.
         """
-        strategy = self._resolve_strategy(user_id)
+        strategy = self.resolve_strategy(user_id)
 
         rows = execute_query(
             "SELECT unit_code, bloom_level, is_correct FROM quiz_attempt_details WHERE attempt_id = %s",
@@ -121,7 +158,11 @@ class MasteryService:
         results = []
         for unit_code, target_level in self.targets.items():
             bloom_correctness = by_unit.get(unit_code, {})
-            unit_mastery_level = strategy.infer_unit_mastery_level(bloom_correctness)
+            # Fresh per-unit instance (see new_instance_for_unit) - required
+            # for DBN so each unit runs its own isolated DBN; a no-op for
+            # Manual, which is stateless.
+            unit_strategy = strategy.new_instance_for_unit(unit_code)
+            unit_mastery_level = unit_strategy.infer_unit_mastery_level(bloom_correctness)
             unit_score = sum(
                 QuizGenerator.BLOOM_SCORES.get(level, 0)
                 for level, correct in bloom_correctness.items() if correct

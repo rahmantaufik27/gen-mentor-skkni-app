@@ -16,12 +16,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from services.question_loader import QuestionLoader
 from services.quiz_service import QuizService
 from services.materials_service import MaterialsService
+from services.practice_service import PracticeService
 from controllers.quiz_controller import QuizController
 from controllers.materials_controller import MaterialsController
+from controllers.practice_controller import PracticeController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
 from routes.materials_routes import init_materials_routes
 from routes.admin_routes import init_admin_routes
+from routes.practice_routes import init_practice_routes
 # Table creation is disabled at startup: the users/quiz schema already exists
 # in the live database and is managed manually, not via these migration scripts.
 # from migrations.001_create_users_table import create_users_table
@@ -72,15 +75,18 @@ def create_app(config=None):
     question_loader = QuestionLoader(data_dir)
     quiz_service = QuizService(question_loader)
     materials_service = MaterialsService()
+    practice_service = PracticeService()
 
     # Initialize controllers
     controller = QuizController(quiz_service)
     materials_controller = MaterialsController(materials_service)
+    practice_controller = PracticeController(practice_service)
 
     # Initialize routes
     init_quiz_routes(app, controller)
     init_materials_routes(app, materials_controller)
     init_admin_routes(app)
+    init_practice_routes(app, practice_controller)
 
     # Initialize authentication
     print("Initializing authentication system...")
@@ -112,11 +118,19 @@ def create_app(config=None):
                     "get_all_results": "GET /api/quiz/all-results",
                     "get_results_summary": "GET /api/quiz/results-summary",
                     "get_mastery_summary": "GET /api/quiz/mastery-summary",
+                    "get_unit_code_map": "GET /api/quiz/unit-codes",
                     "get_recommended_questions": "GET /api/quiz/recommended-questions"
                 },
                 "materials": {
                     "get_all": "GET /api/materials/all",
                     "get_recommended": "GET /api/materials/recommended"
+                },
+                "practice": {
+                    "start_practice": "POST /api/practice/start",
+                    "get_question": "GET /api/practice/question/<session_id>/<question_index>",
+                    "submit_answer": "POST /api/practice/submit-answer",
+                    "complete_practice": "POST /api/practice/complete/<session_id>",
+                    "get_practice_analytics": "GET /api/practice/analytics"
                 },
                 "admin": {
                     "login": "POST /api/admin/login",

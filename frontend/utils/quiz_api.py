@@ -159,6 +159,28 @@ def get_mastery_summary() -> dict:
         return {"success": False, "error": str(e)}
 
 
+def get_unit_code_map() -> dict:
+    """
+    Get the truncated -> full unit_code map (static, not user-specific) -
+    used to display full unit codes (e.g. "J.620100.005.02") consistently
+    everywhere a unit_code is shown, without changing what's stored
+    internally (Postgres/session data keep using the truncated code).
+
+    Returns:
+        Dictionary with a "unit_codes" map ({truncated: full})
+    """
+    try:
+        url = f"{backend_endpoint}api/quiz/unit-codes"
+        response = httpx.get(url, timeout=30)
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"success": False, "error": f"Status code: {response.status_code}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def get_recommended_questions() -> dict:
     """
     Get adaptive practice questions recommended for the current user's

@@ -3,7 +3,7 @@ App entry point (`streamlit run main.py`).
 
 Acts as the router: unauthenticated users are sent to the Login page;
 authenticated users get pages/learner_profile.py exec'd in place as the
-main hub (which in turn exec's pages/quiz.py for the Quiz tab). This is
+main hub (which in turn exec's pages/test.py for the Test tab). This is
 also the only place that calls st.set_page_config()/inject_theme() for the
 authenticated shell - Login/Register are separate entry scripts with their
 own config.

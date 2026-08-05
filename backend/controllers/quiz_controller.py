@@ -116,6 +116,18 @@ class QuizController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def get_unit_code_map(self) -> dict:
+        """
+        Get the truncated -> full unit_code map (static, not user-specific)
+
+        Returns:
+            Dictionary with a unit_codes map
+        """
+        try:
+            return self.quiz_service.get_unit_code_map()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def get_recommended_questions(self, user_id: str) -> dict:
         """
         Get practice questions recommended from the Neo4j knowledge graph

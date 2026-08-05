@@ -22,7 +22,7 @@ BRAND_NAME = "GenQ-SKKNI"
 NAV_ITEMS = [
     {"key": "profile", "label": "My Profile", "icon": ":material/account_circle:"},
     {"key": "learning_path", "label": "Learning Path", "icon": ":material/school:"},
-    {"key": "quiz", "label": "Quiz", "icon": ":material/assignment:"},
+    {"key": "test", "label": "Test", "icon": ":material/assignment:"},
 ]
 # Admin is a separate module (pages/admin_login.py + pages/admin_dashboard.py,
 # its own login and session-state flag) - deliberately not part of the
@@ -69,13 +69,16 @@ def render_sidebar_nav(active: str, submenus: dict = None):
     Render the left navigation sidebar (brand + nav items), with optional
     nested submenu items shown indented under a NAV_ITEMS entry - e.g.
     Learning Path's Reading Materials / Learning with Chatbot Assistance /
-    Exercises with Generative Questions items.
+    Practice with Generative Questions items.
 
     Submenu items are always visible (not gated by their parent being
     active) and are full pages in their own right: clicking one navigates
     straight to it by setting st.session_state.current_page to the child's
     key, exactly like a top-level item - so `active` alone (checked against
-    both NAV_ITEMS and submenu keys) determines every highlight.
+    both NAV_ITEMS and submenu keys) determines every highlight. Every item
+    stays clickable at all times - Test/Practice eligibility (see
+    utils/gating.py) is enforced by each page disabling its own Start
+    button instead, never by hiding or disabling the menu.
 
     Args:
         active: current page key (st.session_state.current_page)
