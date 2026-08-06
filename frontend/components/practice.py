@@ -70,19 +70,20 @@ def _render_practice_start():
     Render practice start screen. Always visible - eligibility (see
     utils/gating.py) only disables the Start button below, with an inline
     message explaining why; the page and sidebar menu are never hidden.
+
+    Practice is enabled for the rest of the user's lifetime once their
+    one-time Test is done (see utils/gating.py - a Test can never be
+    retaken), so the only real "not eligible yet" case left is before
+    that Test. The "nothing left to practice right now" case (every unit
+    Mastered) is handled by the Start button's own click response (see
+    PracticeService._no_questions_response), not a pre-click gate here.
     """
     gating = get_learning_gating()
 
     st.subheader("Start Practice")
 
     if not gating["practice_enabled"]:
-        if gating["is_placement_test"]:
-            st.warning("⚠️ Practice unlocks after you complete your Placement Test.")
-        else:
-            st.success(
-                "🎉 All your units are currently Mastered - there are no Practice "
-                "recommendations right now. Head to your next Test to keep progressing!"
-            )
+        st.warning("⚠️ Practice unlocks after you complete your Placement Test.")
 
     col1, col2 = st.columns(2)
 
@@ -99,10 +100,10 @@ def _render_practice_start():
         st.info("""
         ✅ **Tips for Success**
         - Practice targets units still Remedial after your latest Practice
-          results (or your latest Test, before your first Practice session)
+          results (or your Test, before your first Practice session)
         - Read each question carefully
-        - Results here don't affect your Test history or mastery status
-        - Take a Test again once you feel ready
+        - Practice can be repeated as many times as you like - your Test
+          result stays as your one-time baseline
         """)
 
     st.divider()

@@ -34,15 +34,31 @@ class QuizService:
     
     def start_quiz(self, user_id: str) -> Dict:
         """
-        Start a new quiz session for a user.
-        
+        Start a new quiz session for a user. A Test is taken exactly ONCE,
+        ever - refuses to start a second one if the user already has a
+        completed attempt, regardless of pass/fail (see utils/gating.py on
+        the frontend for the matching UI-side rule; this is the
+        server-side enforcement of the same one-time rule). Practice is
+        the sole ongoing mechanism afterward.
+
         Args:
             user_id: UUID of the user
-            
+
         Returns:
             Dictionary with session info and first question, or error
         """
         try:
+            existing_attempt = execute_query(
+                "SELECT id FROM quiz_attempts WHERE user_id = %s AND completed_at IS NOT NULL LIMIT 1",
+                (user_id,),
+                fetch=True,
+            )
+            if existing_attempt:
+                return {
+                    "success": False,
+                    "error": "You have already completed your Test - it can only be taken once. Head to Practice to keep improving.",
+                }
+
             # Validate dataset
             validation = self.generator.validate_dataset()
             if not validation["valid"]:

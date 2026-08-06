@@ -32,11 +32,13 @@ MasteryService MASTERED/REMEDIAL), that unit is excluded from every
 subsequent Practice session (see
 MasteryService.get_practice_mastered_units_since_last_test, the single
 shared implementation also used by MaterialsService and the Practice
-Analytics dashboard) until a NEW Test re-evaluates it - Neo4j's
-MASTERY.mastery_status (Test-driven) remains the sole OFFICIAL source of
-truth and is never written to by Practice; this is a read-only refinement
-layered on top, using only the existing
-practice_attempts/practice_attempt_units/quiz_attempts tables.
+Analytics dashboard) - Neo4j's MASTERY.mastery_status (Test-driven)
+remains the sole OFFICIAL source of truth and is never written to by
+Practice; this is a read-only refinement layered on top, using only the
+existing practice_attempts/practice_attempt_units/quiz_attempts tables.
+The Test itself is a one-time event (see QuizService.start_quiz - it can
+never be retaken), so Practice is the sole ongoing mechanism for the rest
+of the user's lifetime once it's done.
 """
 
 import re
@@ -85,10 +87,11 @@ class PracticeService:
         excluding Mastered units), across the full C1-C6 range for each.
 
         On top of that, units the learner has already reached target on
-        IN PRACTICE since their latest Test are excluded too (see
+        IN PRACTICE since their Test are excluded too (see
         MasteryService.get_practice_mastered_units_since_last_test) - e.g.
         if Unit A is inferred Mastered in Practice session 1, it won't
-        appear in session 2 unless a new Test re-evaluates it.
+        appear in session 2 (the Test itself can't be retaken to reset
+        this - see QuizService.start_quiz).
 
         Returns:
             Dictionary with session info and first question, or error.
@@ -144,14 +147,18 @@ class PracticeService:
         """
         Build the error response for an empty recommended-questions pool,
         distinguishing three real cases so the frontend can show an
-        accurate message instead of always claiming "great job":
+        accurate message instead of always claiming "great job". The Test
+        is a one-time event (see QuizService.start_quiz) - none of these
+        messages ever point the learner back at "another Test", since
+        there isn't one; Practice is the sole ongoing mechanism once the
+        Test is done:
         - Every unit is genuinely Mastered per Test (has_attempts and all
-          units' mastery_status == "Mastered") -> all_mastered=True,
-          direct the learner to their next Test.
+          units' mastery_status == "Mastered") -> all_mastered=True, a
+          congratulatory message with no further CTA.
         - Some Remedial units remain per Test, but every one of them was
           already excluded by MasteryService.get_practice_mastered_units_since_last_test
-          (excluded_by_practice=True) -> distinct message pointing at a
-          Test to confirm/refresh the official status.
+          (excluded_by_practice=True) -> distinct message noting they're
+          already at target for now.
         - Any other reason (e.g. a Remedial unit with no eligible question
           data) -> an honest "try again later" message.
         """
@@ -170,8 +177,8 @@ class PracticeService:
                 "success": False,
                 "all_mastered": True,
                 "error": (
-                    "All your units are currently Mastered - there are no Practice "
-                    "recommendations right now. Head to your next Test to keep progressing!"
+                    "All your units are currently Mastered - congratulations! "
+                    "There are no Practice recommendations right now."
                 ),
             }
         if excluded_by_practice:
@@ -180,8 +187,8 @@ class PracticeService:
                 "all_mastered": False,
                 "error": (
                     "You've already reached target level in Practice for your remaining "
-                    "Remedial units. Take a Test to confirm your progress and unlock new "
-                    "recommendations!"
+                    "Remedial units. Great progress - check back after practicing your "
+                    "other units, or come back to this one again soon."
                 ),
             }
         return {

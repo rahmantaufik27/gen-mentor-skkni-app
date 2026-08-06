@@ -8,12 +8,20 @@ Route Protection:
 
 The underlying scoring/mastery logic (utils/quiz_api.py, still calling the
 existing /api/quiz/* endpoints) is unchanged - only presentation/naming and
-availability gating are new here. See utils/gating.py for the Test/Practice
-eligibility rule: the first Test is the Placement Test; after that, Test
-stays eligible only while all six units are Mastered, otherwise Test is
-ineligible and Practice is eligible instead. The page/menu are never hidden
-or disabled - only the Start button on render_test_start() is, alongside an
+availability gating are new here.
+
+The Test (the Placement Test) is taken exactly ONCE, ever - see
+utils/gating.py: test_enabled is True only before that one attempt, and
+permanently False afterward (enforced server-side too, see
+QuizService.start_quiz). There is no "retake"; Practice is the sole
+ongoing mechanism from then on. The page/menu are never hidden or
+disabled - only the Start button on render_test_start() is, alongside an
 inline message explaining why.
+
+Test History (show_test_history()) therefore shows at most ONE completed
+result, not a multi-attempt list - contrast with Practice History
+(components/mastery_dashboard.py), which tracks every repeatable Practice
+session.
 """
 
 import pandas as pd
@@ -74,54 +82,43 @@ def render_test_start():
     Render test start screen. Always visible - eligibility (see
     utils/gating.py) only disables the Start button below, with an inline
     message explaining why; the page and sidebar menu are never hidden.
+
+    The Test is a one-time Placement Test - there is no "generic Test" or
+    retake state to render here, so this always shows the same Placement
+    Test framing. Once test_enabled is False (the Test has been
+    completed, ever), the Start button is disabled and Practice is
+    presented as the ongoing path forward.
     """
     gating = get_learning_gating()
-    is_placement = gating["is_placement_test"]
-    heading = "Start Your Placement Test" if is_placement else "Start a New Test"
 
     with st.container(border=True):
-        st.markdown(f"#### 📝 {heading}")
+        st.markdown("#### 📝 Start Your Placement Test")
 
     if not gating["test_enabled"]:
         st.warning(
-            "⚠️ Test is currently unavailable. Some of your units still need work - "
-            "head to Practice to reinforce them, then come back to try Test again."
+            "⚠️ You've already completed your Test - it can only be taken once. "
+            "Head to Practice to keep improving your units."
         )
 
     col1, col2 = st.columns(2)
 
     with col1:
-        if is_placement:
-            st.markdown("""
-            #### Test Information
-            - **Total Questions:** 36
-            - **Question Types:** Multiple Choice
-            - **Time Limit:** No time limit
-            - **Randomization:** Questions are randomized for each attempt
-            - This placement test assesses your current knowledge across all six units.
+        st.markdown("""
+        #### Test Information
+        - **Total Questions:** 36
+        - **Question Types:** Multiple Choice
+        - **Time Limit:** No time limit
+        - **Randomization:** Questions are randomized
+        - This is a one-time Test that assesses your current knowledge
+          across all six units - it cannot be retaken.
 
-            #### How to Take the Test
-            1. Click "Start Test" to begin
-            2. Answer each question by selecting one option
-            3. Click "Next Question" to proceed
-            4. Review your progress at the top
-            5. Complete all questions to see results
-            """)
-        else:
-            st.markdown("""
-            #### Test Information
-            - **Total Questions:** 36
-            - **Question Types:** Multiple Choice
-            - **Time Limit:** No time limit
-            - **Randomization:** Questions are randomized for each attempt
-
-            #### How to Take the Test
-            1. Click "Start Test" to begin
-            2. Answer each question by selecting one option
-            3. Click "Next Question" to proceed
-            4. Review your progress at the top
-            5. Complete all questions to see results
-            """)
+        #### How to Take the Test
+        1. Click "Start Test" to begin
+        2. Answer each question by selecting one option
+        3. Click "Next Question" to proceed
+        4. Review your progress at the top
+        5. Complete all questions to see results
+        """)
 
     with col2:
         st.info("""
@@ -130,13 +127,14 @@ def render_test_start():
         - Consider all options before answering
         - You cannot go back to previous questions
         - Results will show your score, pass/fail status, and detailed review
+        - Afterward, Practice lets you keep reinforcing your weakest units
+          as many times as you like
         """)
 
     st.divider()
 
-    button_label = "🚀 Start Placement Test" if is_placement else "🚀 Start Test"
     if st.button(
-        button_label, use_container_width=True, type="primary",
+        "🚀 Start Placement Test", use_container_width=True, type="primary",
         key="start_test_btn", disabled=not gating["test_enabled"],
     ):
         result = start_quiz()
@@ -335,41 +333,28 @@ def render_test_results():
 
     st.divider()
 
-    # Action buttons - re-check gating now that this attempt just completed
-    gating = get_learning_gating()
+    # Action buttons. Test can never be retaken (see utils/gating.py /
+    # QuizService.start_quiz), so there is no "Take Another Test" option
+    # here - Practice is always the next step forward from this screen.
     if "test_show_review" not in st.session_state:
         st.session_state.test_show_review = False
     col1, col2, col3 = st.columns(3)
-    # col1, col2 = st.columns(2)
 
     with col1:
-        if gating["test_enabled"]:
-            if st.button("Take Another Test", use_container_width=True, type="primary"):
-                st.session_state.test_started = False
-                st.session_state.test_current_question = 0
-                st.session_state.test_session_id = None
-                st.session_state.test_completed = False
-                st.session_state.test_result = None
-                st.rerun()
-        else:
-            if st.button("Go to Practice", use_container_width=True, type="primary"):
-                st.session_state.test_started = False
-                st.session_state.test_current_question = 0
-                st.session_state.test_session_id = None
-                st.session_state.test_completed = False
-                st.session_state.test_result = None
-                st.session_state.current_page = "practice"
-                st.rerun()
+        if st.button("Go to Practice", use_container_width=True, type="primary"):
+            st.session_state.test_started = False
+            st.session_state.test_current_question = 0
+            st.session_state.test_session_id = None
+            st.session_state.test_completed = False
+            st.session_state.test_result = None
+            st.session_state.current_page = "practice"
+            st.rerun()
 
     with col2:
         review_label = "📋 Hide Test Review" if st.session_state.test_show_review else "View Test Review"
         if st.button(review_label, use_container_width=True):
             st.session_state.test_show_review = not st.session_state.test_show_review
             st.rerun()
-
-    # with col2:
-    #     if st.button("View Test History", use_container_width=True):
-    #         show_test_history()
 
     with col3:
         if st.button("Go Home", use_container_width=True):
@@ -393,6 +378,9 @@ def show_test_history():
     (see components/practice.py::_render_practice_review) - Question No. /
     Unit / Question Knowledge Level / User Answer / Result.
     """
+    # limit=10 is a defensive ceiling, not an expectation of multiple
+    # results - QuizService.start_quiz refuses a second attempt, so this
+    # will only ever contain 0 or 1 entries in practice.
     history_result = get_quiz_history(limit=10)
 
     if history_result.get("success"):
@@ -402,82 +390,39 @@ def show_test_history():
         st.subheader("Your Test History")
 
         if attempts:
-            for idx, attempt in enumerate(attempts, 1):
-                with st.expander(f"Attempt {idx} - {attempt.get('status')}"):
-                    col1, col2, col3 = st.columns(3)
-
-                    with col1:
-                        st.write(f"**Score:** {attempt.get('total_score')} points")
-
-                    with col2:
-                        st.write(f"**Correct:** {attempt.get('correct_answers')}/{attempt.get('total_questions')}")
-
-                    with col3:
-                        status = attempt.get('status', 'UNKNOWN')
-                        st.write(f"**Status:** {status}")
-
-                    st.write(f"**Date:** {attempt.get('completed_at')}")
-
-                    review = attempt.get("review", [])
-                    if review:
-                        st.markdown("")
-                        st.markdown("###### Question Review")
-                        review_df = pd.DataFrame([
-                            {
-                                "Question No.": r["question_number"],
-                                "Unit": code_map.get(r["unit_code"], r["unit_code"]),
-                                "Question Knowledge Level": r["bloom_level"],
-                                "User Answer": r["user_answer"],
-                                "Result": "✅ Correct" if r["is_correct"] else "❌ Wrong",
-                            }
-                            for r in review
-                        ])
-                        st.dataframe(review_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No test attempts yet")
-    else:
-        st.error(f"Failed to load history: {history_result.get('error')}")
-
-
-def show_all_test_results():
-    """Show all results summary"""
-    history_result = get_quiz_history(limit=100)
-
-    if history_result.get("success"):
-        attempts = history_result.get("attempts", [])
-
-        st.subheader("All Test Results")
-
-        if attempts:
-            # Summary stats
-            total_attempts = len(attempts)
-            passed = sum(1 for a in attempts if a.get('status') == 'PASS')
-            failed = total_attempts - passed
-            avg_score = sum(a.get('total_score', 0) for a in attempts) / total_attempts if total_attempts > 0 else 0
-
-            col1, col2, col3, col4 = st.columns(4)
+            attempt = attempts[0]
+            col1, col2, col3 = st.columns(3)
 
             with col1:
-                st.metric("Total Attempts", total_attempts)
+                st.write(f"**Score:** {attempt.get('total_score')} points")
 
             with col2:
-                st.metric("Passed", passed)
+                st.write(f"**Correct:** {attempt.get('correct_answers')}/{attempt.get('total_questions')}")
 
             with col3:
-                st.metric("Failed", failed)
+                st.write(f"**Status:** {attempt.get('status', 'UNKNOWN')}")
 
-            with col4:
-                st.metric("Avg Score", f"{avg_score:.1f}")
+            st.write(f"**Date:** {attempt.get('completed_at')}")
 
-            st.divider()
-
-            # Show recent attempts
-            st.subheader("Recent Attempts")
-            show_test_history()
+            review = attempt.get("review", [])
+            if review:
+                st.markdown("")
+                st.markdown("###### Question Review")
+                review_df = pd.DataFrame([
+                    {
+                        "Question No.": r["question_number"],
+                        "Unit": code_map.get(r["unit_code"], r["unit_code"]),
+                        "Question Knowledge Level": r["bloom_level"],
+                        "User Answer": r["user_answer"],
+                        "Result": "✅ Correct" if r["is_correct"] else "❌ Wrong",
+                    }
+                    for r in review
+                ])
+                st.dataframe(review_df, use_container_width=True, hide_index=True)
         else:
-            st.info("No test attempts yet")
+            st.info("No test attempt yet")
     else:
-        st.error(f"Failed to load results: {history_result.get('error')}")
+        st.error(f"Failed to load history: {history_result.get('error')}")
 
 
 # ============================================================================

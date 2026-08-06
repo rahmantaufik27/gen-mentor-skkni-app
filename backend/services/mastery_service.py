@@ -359,13 +359,14 @@ class MasteryService:
 
     def get_effective_remedial_units(self, user_id: str) -> List[str]:
         """
-        Truncated unit_codes that are Remedial per the latest Test AND not
-        yet Practice-Mastered since that Test - the adaptive recommendation
+        Truncated unit_codes that are Remedial per the Test AND not yet
+        Practice-Mastered since that Test - the adaptive recommendation
         set driving Practice, Reading Materials, and the Practice Analytics
-        dashboard's "Currently Recommended" between Tests. The Placement
-        Test (or any Test) is the baseline; from the first Practice session
-        onward, this set narrows as units are demonstrated Mastered in
-        Practice, until the next Test re-evaluates everything.
+        dashboard's "Currently Recommended". The one-time Test (see
+        QuizService.start_quiz - a Test can never be retaken) is the fixed
+        baseline; from the first Practice session onward, this set narrows
+        as units are demonstrated Mastered in Practice, for the rest of
+        the user's lifetime (there is no "next Test" to reset it).
 
         Public entry point for other services (MaterialsService,
         PracticeService) - delegates to get_user_mastery_summary(), which

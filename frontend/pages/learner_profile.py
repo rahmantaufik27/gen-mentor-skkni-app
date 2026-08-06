@@ -8,10 +8,11 @@ It provides navigation to:
 - Account/Profile information
 - Logout functionality
 
-Test and Practice eligibility is gated (see utils/gating.py): the first
-Test is the Placement Test; afterward Test stays eligible only while all
-units are Mastered, otherwise Test is ineligible and Practice is eligible.
-Both stay visible/clickable in the sidebar at all times - the gate only
+Test and Practice eligibility is gated (see utils/gating.py): the Test
+(the Placement Test) is taken exactly once, ever - eligible only before
+that one attempt, permanently ineligible afterward. Practice becomes
+eligible from that point on, for the rest of the user's lifetime. Both
+stay visible/clickable in the sidebar at all times - the gate only
 disables the Start button on each page, with an inline message explaining
 why (see pages/test.py / components/practice.py).
 
@@ -45,12 +46,12 @@ if "current_page" not in st.session_state:
     st.session_state.current_page = "profile"
 
 # ============================================================================
-# TEST / PRACTICE ELIGIBILITY (see utils/gating.py) - the first Test is the
-# Placement Test; Test stays eligible only while all units are Mastered,
-# otherwise Test is ineligible and Practice is eligible instead. Used below
-# for the Placement Test header and passed to each page, which disables its
-# own Start button rather than the sidebar entry - Test/Practice stay
-# visible and clickable at all times.
+# TEST / PRACTICE ELIGIBILITY (see utils/gating.py) - the Test (the
+# Placement Test) is eligible only before it's ever been taken; Practice
+# becomes eligible from then on, for good (a Test can never be retaken).
+# Used below for the Placement Test header and passed to each page, which
+# disables its own Start button rather than the sidebar entry -
+# Test/Practice stay visible and clickable at all times.
 # ============================================================================
 gating = get_learning_gating()
 

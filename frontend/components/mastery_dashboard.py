@@ -92,28 +92,32 @@ def _render_test_analytics(code_map: dict):
 
     units = summary.get("units", [])
     current_status = summary.get("current_status", "FAIL")
-    total_attempts = summary.get("total_attempts", 0)
+    has_attempts = summary.get("has_attempts", False)
     latest_attempt_date = summary.get("latest_attempt_date")
 
     # --- Stat tiles ---------------------------------------------------
-    col1, col2, col3 = st.columns(3)
+    # No "Total Test Attempts" counter - the Test is a one-time event (see
+    # utils/gating.py / QuizService.start_quiz, which refuses a retake),
+    # so a count would only ever read 0 or 1. "Test Completed" says the
+    # same thing more clearly; ongoing progress lives in Practice Analytics.
+    col1, col2 = st.columns(2)
     with col1:
         st.metric(
             label="Latest Test Status",
             value=current_status,
             help="PASS requires all six units to be Mastered"
         )
+    # with col2:
+    #     st.metric(
+    #         label="Test Completed",
+    #         value="Yes" if has_attempts else "No",
+    #         help="The Test is a one-time assessment - it cannot be retaken"
+    #     )
     with col2:
-        st.metric(
-            label="Total Test Attempts",
-            value=total_attempts,
-            help="Number of Tests you have completed"
-        )
-    with col3:
         st.metric(
             label="Latest Test Date",
             value=_format_date(latest_attempt_date),
-            help="Date of your most recent completed Test"
+            help="Date of your completed Test"
         )
 
     if not units:
@@ -238,7 +242,7 @@ def _render_practice_analytics(code_map: dict):
         )
     with col2:
         st.metric(
-            label="Recommended Unit(s)",
+            label="Recommended Unit(s) for Practice",
             value=len(recommended_units),
             help="Units still Remedial after your latest Practice results (or your latest Test, before your first Practice session) - the same units Practice questions are sourced from"
         )
