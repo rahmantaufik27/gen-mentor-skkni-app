@@ -7,7 +7,9 @@ Route Protection:
 
 Dedicated full page for the Learning with Chatbot Assistance learning
 method - reachable directly from the Learning Path submenu in the sidebar.
-Placeholder for future LLM integration - see components/learning_path.py.
+Renders the standalone AI-tutor chat (components/chatbot.py, backed by a
+pluggable local LLM via /api/chatbot/*). Independent of the DB/Neo4j/user
+model - see components/learning_path.py.
 """
 
 import streamlit as st

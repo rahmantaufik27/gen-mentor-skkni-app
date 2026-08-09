@@ -80,7 +80,7 @@ def _render_practice_start():
     """
     gating = get_learning_gating()
 
-    st.subheader("Start Practice")
+    st.markdown("#### 📝 Start Practice")
 
     if not gating["practice_enabled"]:
         st.warning("⚠️ Practice unlocks after you complete your Placement Test.")
@@ -89,7 +89,7 @@ def _render_practice_start():
 
     with col1:
         st.markdown("""
-        #### Practice Information
+        ##### Practice Information
         - **Question source:** Recommended for your weakest units
         - **Question Types:** Multiple Choice
         - **Time Limit:** No time limit
@@ -109,7 +109,7 @@ def _render_practice_start():
     st.divider()
 
     if st.button(
-        "🚀 Start Practice", use_container_width=True, type="primary",
+        "Start Practice", use_container_width=True, type="primary",
         key="start_practice_btn", disabled=not gating["practice_enabled"],
     ):
         result = start_practice()

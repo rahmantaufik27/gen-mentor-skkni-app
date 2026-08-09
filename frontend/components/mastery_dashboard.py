@@ -83,7 +83,7 @@ def render_mastery_dashboard():
 
 def _render_test_analytics(code_map: dict):
     """Test Analytics: latest status/date, Mastered vs Remedial, per-unit Knowledge Level, unit table."""
-    st.markdown("#### 🧪 Test Analytics")
+    st.markdown("#### 📊 Test Analytics")
 
     summary = get_mastery_summary()
     if not summary.get("success"):

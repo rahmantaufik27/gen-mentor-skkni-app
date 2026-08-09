@@ -10,7 +10,7 @@ from utils.theme import inject_theme, render_brand
 if "login_error" not in st.session_state:
     st.session_state.login_error = None
 
-st.set_page_config(page_title="Login - Gen-Mentor", page_icon="🔐", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="GenM - Login", page_icon="🔐", layout="centered", initial_sidebar_state="collapsed")
 
 # ============================================================================
 # HIDE STREAMLIT'S AUTOMATIC PAGE SIDEBAR (auth pages don't use the app shell)
@@ -68,8 +68,8 @@ render_brand(auth_style=True)
 
 with st.container(border=True):
     # Page title and description
-    st.markdown("<h2 style='text-align: center; margin-top:0;'>Welcome Back</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: var(--text-muted);'>Sign in to your Gen-Mentor account</p>", unsafe_allow_html=True)
+    st.markdown("<p style='margin-top: 0; text-align: center; font-size: 36px; font-weight: bold;'>Welcome Back</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: var(--text-muted);'>Sign in to your GenM-SKKNI account</p>", unsafe_allow_html=True)
 
     # Display success message if the user just registered
     if st.session_state.get("registration_just_completed"):

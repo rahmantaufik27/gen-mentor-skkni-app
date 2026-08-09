@@ -134,3 +134,86 @@ def get_practice_analytics() -> dict:
             return {"success": False, "error": f"Status code: {response.status_code}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Learning Path statistics
+#
+# Backed by the standalone /api/learning-path/* module (see
+# backend/services/learning_path_stats_service.py). Exposed here so the
+# frontend has a single, stable practice_api entry point for Learning Path
+# dashboard metrics. New metrics show up as new keys in the get_learning_path_stats()
+# payload - no change to these function signatures is needed to add one.
+# ---------------------------------------------------------------------------
+
+# Well-known activity types (mirror the backend constants). Passing a new
+# string here is all it takes to start tracking a new countable metric.
+ACTIVITY_MATERIAL_VIEW = "material_view"
+ACTIVITY_CHATBOT_PROMPT = "chatbot_prompt"
+
+
+def get_learning_path_stats() -> dict:
+    """
+    Get the current user's aggregated Learning Path statistics.
+
+    Returns:
+        {"success": True, latest_practice_score, average_practice_score,
+         mastered_units, remedial_units, total_units, materials_viewed,
+         latest_material_activity, chatbot_attempts, latest_chatbot_interaction,
+         latest_practice_interaction, ...} or {"success": False, "error": str}
+    """
+    try:
+        user_id = st.session_state.get("userId")
+        if not user_id:
+            return {"success": False, "error": "User not authenticated"}
+
+        url = f"{backend_endpoint}api/learning-path/stats"
+        response = httpx.get(url, params={"user_id": user_id}, timeout=30)
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"success": False, "error": f"Status code: {response.status_code}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def record_activity(activity_type: str, metadata: dict = None) -> dict:
+    """
+    Record one Learning Path activity event for the current user.
+
+    Fire-and-forget from the caller's perspective: it never raises, so a
+    tracking failure can't break the feature the user is actually using.
+
+    Args:
+        activity_type: e.g. ACTIVITY_MATERIAL_VIEW, ACTIVITY_CHATBOT_PROMPT,
+            or any new metric's own string.
+        metadata: optional per-event detail (e.g. {"unit_code": ...}).
+    """
+    try:
+        user_id = st.session_state.get("userId")
+        if not user_id:
+            return {"success": False, "error": "User not authenticated"}
+
+        url = f"{backend_endpoint}api/learning-path/activity"
+        payload = {"user_id": user_id, "activity_type": activity_type}
+        if metadata:
+            payload["metadata"] = metadata
+        response = httpx.post(url, json=payload, timeout=10)
+
+        if response.status_code == 200:
+            return response.json()
+        return {"success": False, "error": f"Status code: {response.status_code}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def record_material_view(unit_code: str = None) -> dict:
+    """Count that the user opened a material (see reading_materials.py)."""
+    metadata = {"unit_code": unit_code} if unit_code else None
+    return record_activity(ACTIVITY_MATERIAL_VIEW, metadata)
+
+
+def record_chatbot_attempt() -> dict:
+    """Count that the user sent a chatbot prompt (see components/chatbot.py)."""
+    return record_activity(ACTIVITY_CHATBOT_PROMPT)

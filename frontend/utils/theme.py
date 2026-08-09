@@ -15,7 +15,7 @@ CARD = "#FFFFFF"
 TEXT = "#111827"
 BORDER = "#E5E7EB"
 
-BRAND_NAME = "GenQ-SKKNI"
+BRAND_NAME = "GenM-SKKNI"
 
 # Sidebar nav entries -> maps directly to st.session_state.current_page values
 # consumed by pages/learner_profile.py

@@ -20,28 +20,14 @@ pages/learner_profile.py's routing - no changes needed to the other
 methods or to the sidebar.
 """
 
-import streamlit as st
-
 from components.reading_materials import render_reading_materials
 from components.practice import render_practice
-
-
-def _render_coming_soon(name: str, description: str):
-    """Placeholder renderer for a learning method that hasn't been built yet."""
-    def _render():
-        st.info(f"**{name}** is coming soon. {description}")
-    return _render
+from components.chatbot import render_chatbot
 
 
 LEARNING_METHODS = {
     "reading_materials": {"label": "Reading Materials", "render": render_reading_materials},
-    "chatbot": {
-        "label": "Learning with Chatbot Assistance",
-        "render": _render_coming_soon(
-            "Learning with Chatbot Assistance",
-            "Chat with an AI tutor for personalized help - LLM integration coming soon.",
-        ),
-    },
+    "chatbot": {"label": "Learning with Chatbot Assistance", "render": render_chatbot},
     "practice": {"label": "Practice with Generative Questions", "render": render_practice},
 }
 

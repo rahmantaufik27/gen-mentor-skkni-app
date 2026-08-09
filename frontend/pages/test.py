@@ -92,7 +92,7 @@ def render_test_start():
     gating = get_learning_gating()
 
     with st.container(border=True):
-        st.markdown("#### 📝 Start Your Placement Test")
+        st.markdown("#### 📝 Start Your Test")
 
     if not gating["test_enabled"]:
         st.warning(
@@ -134,7 +134,7 @@ def render_test_start():
     st.divider()
 
     if st.button(
-        "🚀 Start Placement Test", use_container_width=True, type="primary",
+        "Start Placement Test", use_container_width=True, type="primary",
         key="start_test_btn", disabled=not gating["test_enabled"],
     ):
         result = start_quiz()
@@ -338,6 +338,7 @@ def render_test_results():
     # here - Practice is always the next step forward from this screen.
     if "test_show_review" not in st.session_state:
         st.session_state.test_show_review = False
+
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -351,7 +352,7 @@ def render_test_results():
             st.rerun()
 
     with col2:
-        review_label = "📋 Hide Test Review" if st.session_state.test_show_review else "View Test Review"
+        review_label = "Hide Test Review" if st.session_state.test_show_review else "View Test Review"
         if st.button(review_label, use_container_width=True):
             st.session_state.test_show_review = not st.session_state.test_show_review
             st.rerun()

@@ -22,7 +22,7 @@ initialize_session_state()
 # PAGE CONFIG - Called only once, with all settings
 # ============================================================================
 st.set_page_config(
-    page_title="GenQ-SKKNI",
+    page_title="GenMentor-SKKNI",
     page_icon=":books:",
     layout="wide",
     initial_sidebar_state="expanded"  # Real left nav sidebar (custom content, not Streamlit's auto page list)

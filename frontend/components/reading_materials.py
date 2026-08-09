@@ -13,9 +13,10 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from utils.materials_api import get_all_materials, get_recommended_materials
+from utils.practice_api import record_material_view
 
 TYPE_ICONS = {
-    "presentation": "📊",
+    "presentation": "📄",
     "pdf": "📄",
     "document": "📄",
     "video": "🎬",
@@ -81,6 +82,9 @@ def _render_material_list(materials: list, key_prefix: str, show_status: bool):
             with col2:
                 if st.button("View", key=f"view_{key_prefix}_{idx}", use_container_width=True):
                     st.session_state["selected_material"] = material
+                    # Fire-and-forget: count this material open for Learning Path
+                    # stats. Never blocks or breaks the viewer if it fails.
+                    record_material_view(material.get("unit_code"))
                     st.rerun()
 
 

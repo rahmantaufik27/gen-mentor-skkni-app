@@ -17,14 +17,20 @@ from services.question_loader import QuestionLoader
 from services.quiz_service import QuizService
 from services.materials_service import MaterialsService
 from services.practice_service import PracticeService
+from services.chatbot_service import ChatbotService
+from services.learning_path_stats_service import LearningPathStatsService
 from controllers.quiz_controller import QuizController
 from controllers.materials_controller import MaterialsController
 from controllers.practice_controller import PracticeController
+from controllers.chatbot_controller import ChatbotController
+from controllers.learning_path_stats_controller import LearningPathStatsController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
 from routes.materials_routes import init_materials_routes
 from routes.admin_routes import init_admin_routes
 from routes.practice_routes import init_practice_routes
+from routes.chatbot_routes import init_chatbot_routes
+from routes.learning_path_stats_routes import init_learning_path_stats_routes
 # Table creation is disabled at startup: the users/quiz schema already exists
 # in the live database and is managed manually, not via these migration scripts.
 # from migrations.001_create_users_table import create_users_table
@@ -76,17 +82,27 @@ def create_app(config=None):
     quiz_service = QuizService(question_loader)
     materials_service = MaterialsService()
     practice_service = PracticeService()
+    # Standalone learning assistant - independent of DB/Neo4j/user model
+    # (see services/chatbot_service.py and services/llm/).
+    chatbot_service = ChatbotService()
+    # Lightweight Learning Path statistics (reads Practice/mastery, appends to
+    # its own user_activity log) - see services/learning_path_stats_service.py.
+    stats_service = LearningPathStatsService()
 
     # Initialize controllers
     controller = QuizController(quiz_service)
     materials_controller = MaterialsController(materials_service)
     practice_controller = PracticeController(practice_service)
+    chatbot_controller = ChatbotController(chatbot_service)
+    stats_controller = LearningPathStatsController(stats_service)
 
     # Initialize routes
     init_quiz_routes(app, controller)
     init_materials_routes(app, materials_controller)
     init_admin_routes(app)
     init_practice_routes(app, practice_controller)
+    init_chatbot_routes(app, chatbot_controller)
+    init_learning_path_stats_routes(app, stats_controller)
 
     # Initialize authentication
     print("Initializing authentication system...")
@@ -131,6 +147,14 @@ def create_app(config=None):
                     "submit_answer": "POST /api/practice/submit-answer",
                     "complete_practice": "POST /api/practice/complete/<session_id>",
                     "get_practice_analytics": "GET /api/practice/analytics"
+                },
+                "chatbot": {
+                    "chat": "POST /api/chatbot/chat",
+                    "health": "GET /api/chatbot/health"
+                },
+                "learning_path": {
+                    "get_stats": "GET /api/learning-path/stats",
+                    "record_activity": "POST /api/learning-path/activity"
                 },
                 "admin": {
                     "login": "POST /api/admin/login",
