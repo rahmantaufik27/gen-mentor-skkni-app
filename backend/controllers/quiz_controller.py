@@ -116,6 +116,21 @@ class QuizController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def get_test_analytics(self, user_id: str) -> dict:
+        """
+        Get per-stage (Pre-Test / Post-Test) analytics for the dashboard
+
+        Args:
+            user_id: ID of the user
+
+        Returns:
+            Dictionary with a per-stage analytics map
+        """
+        try:
+            return self.quiz_service.get_test_analytics(user_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def get_unit_code_map(self) -> dict:
         """
         Get the truncated -> full unit_code map (static, not user-specific)

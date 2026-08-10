@@ -34,12 +34,26 @@ class QuizService:
     
     def start_quiz(self, user_id: str) -> Dict:
         """
-        Start a new quiz session for a user. A Test is taken exactly ONCE,
-        ever - refuses to start a second one if the user already has a
-        completed attempt, regardless of pass/fail (see utils/gating.py on
-        the frontend for the matching UI-side rule; this is the
-        server-side enforcement of the same one-time rule). Practice is
-        the sole ongoing mechanism afterward.
+        Start a new quiz session for a user, as the correct TEST STAGE.
+
+        The Test is a two-stage progression, enforced here server-side (the
+        frontend gate in utils/gating.py mirrors the same rule before the
+        Start button is ever clickable):
+
+          - Pre-Test  ('pre')  : taken first, once.
+          - Post-Test ('post') : unlocked only after the Pre-Test is done AND
+            every Practice recommendation has been cleared (all units at
+            target - i.e. no effective_remedial_units left). Taken once.
+
+        The stage is resolved from the mastery summary's next_test_stage (the
+        single source of that rule). A refusal here carries an actionable
+        message for whichever reason applies (both stages already done, or
+        Practice still pending).
+
+        Post-Test questions are drawn from the SAME generator as the Pre-Test
+        (QuizGenerator.generate_quiz - 6 units x C1-C6, randomly selected
+        from the pool), so a Post-Test is "similar to the Pre-Test but
+        re-randomized" by construction.
 
         Args:
             user_id: UUID of the user
@@ -48,16 +62,20 @@ class QuizService:
             Dictionary with session info and first question, or error
         """
         try:
-            existing_attempt = execute_query(
-                "SELECT id FROM quiz_attempts WHERE user_id = %s AND completed_at IS NOT NULL LIMIT 1",
-                (user_id,),
-                fetch=True,
-            )
-            if existing_attempt:
-                return {
-                    "success": False,
-                    "error": "You have already completed your Test - it can only be taken once. Head to Practice to keep improving.",
-                }
+            summary = self.mastery_service.get_user_mastery_summary(user_id)
+            test_stage = summary.get("next_test_stage") if summary.get("success") else None
+            if not test_stage:
+                if summary.get("post_test_completed"):
+                    message = (
+                        "You have already completed both your Pre-Test and Post-Test. "
+                        "Head to Practice to keep improving your units."
+                    )
+                else:
+                    message = (
+                        "Your Post-Test isn't available yet. Clear your remaining Practice "
+                        "recommendations (get every unit to its target Knowledge Level) to unlock it."
+                    )
+                return {"success": False, "error": message}
 
             # Validate dataset
             validation = self.generator.validate_dataset()
@@ -78,7 +96,8 @@ class QuizService:
                 "unit_codes": unit_codes,
                 "answers": [],  # Store [{"question_idx": int, "selected_answer": str, "is_correct": bool, "score": int}]
                 "started_at": datetime.now().isoformat(),
-                "current_question_index": 0
+                "current_question_index": 0,
+                "test_stage": test_stage,
             }
             
             # Prepare first question for response
@@ -226,7 +245,10 @@ class QuizService:
             questions = session["questions"]
             unit_codes = session["unit_codes"]
             answers = session["answers"]
-            
+            # Which stage this attempt belongs to (resolved at start_quiz).
+            # Defaults to 'pre' for safety if an older in-flight session lacks it.
+            test_stage = session.get("test_stage", "pre")
+
             # Calculate overall results
             total_questions = len(questions)
             correct_answers = sum(1 for a in answers if a["is_correct"])
@@ -240,8 +262,8 @@ class QuizService:
             # Insert quiz attempt
             insert_attempt_query = """
             INSERT INTO quiz_attempts
-            (id, user_id, score, passed, started_at, completed_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            (id, user_id, score, passed, started_at, completed_at, test_stage)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """
 
             execute_query(
@@ -252,7 +274,8 @@ class QuizService:
                     total_score,
                     False,
                     session.get("started_at"),
-                    now
+                    now,
+                    test_stage
                 )
             )
             
@@ -322,6 +345,7 @@ class QuizService:
             return {
                 "success": True,
                 "attempt_id": attempt_id,
+                "test_stage": test_stage,
                 "total_questions": total_questions,
                 "correct_answers": correct_answers,
                 "total_score": total_score,
@@ -360,7 +384,7 @@ class QuizService:
         """
         try:
             query = """
-            SELECT id, started_at, completed_at, score, passed
+            SELECT id, started_at, completed_at, score, passed, test_stage
             FROM quiz_attempts
             WHERE user_id = %s
             ORDER BY completed_at DESC NULLS LAST, started_at DESC
@@ -375,7 +399,7 @@ class QuizService:
             bloom_order = {level: i for i, level in enumerate(QuizGenerator.BLOOM_LEVELS)}
 
             attempts = []
-            for attempt_id, started_at, completed_at, score, passed in results:
+            for attempt_id, started_at, completed_at, score, passed, test_stage in results:
                 detail_rows = execute_query(
                     """
                     SELECT question_id, unit_code, bloom_level, selected_answer, correct_answer, is_correct
@@ -408,6 +432,7 @@ class QuizService:
 
                 attempts.append({
                     "attempt_id": attempt_id,
+                    "test_stage": test_stage or "pre",
                     "started_at": started_at.isoformat() if started_at else None,
                     "completed_at": completed_at.isoformat() if completed_at else None,
                     "total_questions": len(detail_rows),
@@ -437,6 +462,21 @@ class QuizService:
             return self.mastery_service.get_user_mastery_summary(user_id)
         except Exception as e:
             return {"success": False, "error": f"Failed to retrieve mastery summary: {str(e)}"}
+
+    def get_test_analytics(self, user_id: str) -> Dict:
+        """
+        Get per-stage (Pre-Test / Post-Test) analytics for the dashboard.
+
+        Args:
+            user_id: User UUID
+
+        Returns:
+            Dictionary with a "stages" map ({"pre": {...}|None, "post": {...}|None})
+        """
+        try:
+            return self.mastery_service.get_test_analytics_by_stage(user_id)
+        except Exception as e:
+            return {"success": False, "error": f"Failed to retrieve test analytics: {str(e)}"}
 
     def get_unit_code_map(self) -> Dict:
         """

@@ -68,7 +68,9 @@ render_sidebar_nav(
 # ============================================================================
 current_user = get_current_user()
 if st.session_state.current_page == "test" and gating["is_placement_test"]:
-    title, subtitle = "Placement Test", "Your first Test assesses your starting knowledge across all six units"
+    title, subtitle = "Placement Test (Pre-Test)", "Your first Test assesses your starting knowledge across all six units"
+elif st.session_state.current_page == "test" and (gating.get("test_stage") == "post" or gating.get("post_test_completed")):
+    title, subtitle = "Post-Test", "A final Test across all six units to confirm the progress you made in Practice"
 else:
     title, subtitle = PAGE_TITLES.get(st.session_state.current_page, PAGE_TITLES["profile"])
 

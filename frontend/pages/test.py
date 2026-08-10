@@ -77,43 +77,64 @@ def render_test_page():
         render_test_results()
 
 
+def _stage_label(stage: str) -> str:
+    """Human label for a test stage."""
+    return "Post-Test" if stage == "post" else "Pre-Test"
+
+
 def render_test_start():
     """
     Render test start screen. Always visible - eligibility (see
     utils/gating.py) only disables the Start button below, with an inline
     message explaining why; the page and sidebar menu are never hidden.
 
-    The Test is a one-time Placement Test - there is no "generic Test" or
-    retake state to render here, so this always shows the same Placement
-    Test framing. Once test_enabled is False (the Test has been
-    completed, ever), the Start button is disabled and Practice is
-    presented as the ongoing path forward.
+    The Test is a two-stage progression (Pre-Test then Post-Test). The
+    screen adapts its framing to whichever stage is next:
+    - Pre-Test available  -> Placement/Pre-Test framing, Start enabled.
+    - Pre-Test done, Post-Test not yet unlocked -> Start disabled, with a
+      message pointing the learner to finish their Practice recommendations.
+    - Post-Test unlocked   -> Post-Test framing, Start enabled.
+    - Both stages done     -> Start disabled, Practice presented as ongoing.
     """
     gating = get_learning_gating()
+    # What this screen is *about*: the Pre-Test until it's done, then the
+    # Post-Test from that point on (whether it's available now, still locked
+    # behind Practice, or already completed).
+    display_stage = "post" if gating.get("pre_test_completed") else "pre"
+    stage_name = _stage_label(display_stage)
 
     with st.container(border=True):
-        st.markdown("#### 📝 Start Your Test")
+        st.markdown(f"#### 📝 Start Your {stage_name}")
 
     if not gating["test_enabled"]:
-        st.warning(
-            "⚠️ You've already completed your Test - it can only be taken once. "
-            "Head to Practice to keep improving your units."
-        )
+        if gating.get("post_test_completed"):
+            st.warning(
+                "⚠️ You've completed both your Pre-Test and Post-Test. "
+                "Head to Practice to keep improving your units."
+            )
+        else:
+            # Pre-Test done, Post-Test still locked: Practice recommendations remain.
+            st.warning(
+                "⚠️ Your **Post-Test** isn't available yet. Clear your remaining "
+                "Practice recommendations - get every unit to its target Knowledge "
+                "Level - and the Post-Test will unlock here."
+            )
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("""
-        #### Test Information
+        st.markdown(f"""
+        #### {stage_name} Information
         - **Total Questions:** 36
         - **Question Types:** Multiple Choice
         - **Time Limit:** No time limit
         - **Randomization:** Questions are randomized
-        - This is a one-time Test that assesses your current knowledge
-          across all six units - it cannot be retaken.
+        - The {stage_name} assesses your knowledge across all six units.
+        - The Test has two stages: the **Pre-Test** first, then the
+          **Post-Test** once you've cleared every Practice recommendation.
 
         #### How to Take the Test
-        1. Click "Start Test" to begin
+        1. Click "Start {stage_name}" to begin
         2. Answer each question by selecting one option
         3. Click "Next Question" to proceed
         4. Review your progress at the top
@@ -127,14 +148,14 @@ def render_test_start():
         - Consider all options before answering
         - You cannot go back to previous questions
         - Results will show your score, pass/fail status, and detailed review
-        - Afterward, Practice lets you keep reinforcing your weakest units
-          as many times as you like
+        - Between the Pre-Test and Post-Test, Practice lets you keep
+          reinforcing your weakest units as many times as you like
         """)
 
     st.divider()
 
     if st.button(
-        "Start Placement Test", use_container_width=True, type="primary",
+        f"Start {stage_name}", use_container_width=True, type="primary",
         key="start_test_btn", disabled=not gating["test_enabled"],
     ):
         result = start_quiz()
@@ -256,8 +277,9 @@ def render_test_results():
     """Render test results with mastery information"""
     result_data = st.session_state.test_result or {}
 
-    # Display results header
-    st.subheader("Test Complete!")
+    # Display results header (stage-aware: Pre-Test vs Post-Test)
+    stage_name = _stage_label(result_data.get("test_stage", "pre"))
+    st.subheader(f"{stage_name} Complete!")
     st.divider()
 
     # Main score display
@@ -373,15 +395,14 @@ def render_test_results():
 
 def show_test_history():
     """
-    Show user's test history. Each attempt (collapsed by default via
-    st.expander - detail only renders on demand when expanded) includes a
-    detailed Question Review table in the same format as Practice Review
-    (see components/practice.py::_render_practice_review) - Question No. /
-    Unit / Question Knowledge Level / User Answer / Result.
+    Show the user's test history across BOTH stages (Pre-Test and Post-Test).
+    Each attempt is shown under its stage label with a detailed Question
+    Review table in the same format as Practice Review (see
+    components/practice.py::_render_practice_review) - Question No. / Unit /
+    Question Knowledge Level / User Answer / Result.
     """
-    # limit=10 is a defensive ceiling, not an expectation of multiple
-    # results - QuizService.start_quiz refuses a second attempt, so this
-    # will only ever contain 0 or 1 entries in practice.
+    # At most two entries in practice (Pre-Test + Post-Test); limit=10 is a
+    # defensive ceiling. Attempts come back newest-first.
     history_result = get_quiz_history(limit=10)
 
     if history_result.get("success"):
@@ -390,8 +411,13 @@ def show_test_history():
 
         st.subheader("Your Test History")
 
-        if attempts:
-            attempt = attempts[0]
+        if not attempts:
+            st.info("No test attempt yet")
+            return
+
+        for attempt in attempts:
+            stage_name = _stage_label(attempt.get("test_stage", "pre"))
+            st.markdown(f"##### {stage_name}")
             col1, col2, col3 = st.columns(3)
 
             with col1:
@@ -420,8 +446,8 @@ def show_test_history():
                     for r in review
                 ])
                 st.dataframe(review_df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No test attempt yet")
+
+            st.divider()
     else:
         st.error(f"Failed to load history: {history_result.get('error')}")
 

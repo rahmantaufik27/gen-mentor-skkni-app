@@ -20,7 +20,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from utils.quiz_api import get_mastery_summary, get_unit_code_map
+from utils.quiz_api import get_mastery_summary, get_unit_code_map, get_test_analytics
 from utils.practice_api import get_practice_analytics
 from utils.theme import SUCCESS, PRIMARY, TEXT, BORDER
 
@@ -75,49 +75,77 @@ def render_mastery_dashboard():
     with st.container(border=True):
         _render_test_analytics(code_map)
 
-    st.markdown("")
+    # st.markdown("")
 
-    with st.container(border=True):
-        _render_practice_analytics(code_map)
+    # with st.container(border=True):
+    #     _render_practice_analytics(code_map)
 
 
 def _render_test_analytics(code_map: dict):
-    """Test Analytics: latest status/date, Mastered vs Remedial, per-unit Knowledge Level, unit table."""
+    """
+    Test Analytics, split by stage: a Pre-Test tab and a Post-Test tab, each
+    showing that stage's status/date/score, Mastered vs Remedial, per-unit
+    Knowledge Level, and unit table. The per-stage rendering
+    (_render_stage_analytics) is identical for both, so the two stages stay
+    directly comparable and the existing chart/table structure is preserved.
+    """
     st.markdown("#### 📊 Test Analytics")
 
-    summary = get_mastery_summary()
-    if not summary.get("success"):
-        st.error(f"Failed to load Test Analytics: {summary.get('error', 'Unknown error')}")
+    analytics = get_test_analytics()
+    if not analytics.get("success"):
+        st.error(f"Failed to load Test Analytics: {analytics.get('error', 'Unknown error')}")
         return
 
-    units = summary.get("units", [])
-    current_status = summary.get("current_status", "FAIL")
-    has_attempts = summary.get("has_attempts", False)
-    latest_attempt_date = summary.get("latest_attempt_date")
+    stages = analytics.get("stages", {}) or {}
+    pre_data = stages.get("pre")
+    post_data = stages.get("post")
+    # practice_data = stages.get("practice")
+
+    tab_pre, tab_practice, tab_post = st.tabs(["Pre-Test", "Practice", "Post-Test"])
+    with tab_pre:
+        if pre_data:
+            _render_stage_analytics(pre_data, code_map, key_prefix="pre")
+        else:
+            st.info("You haven't taken your Pre-Test yet. Head to the Test page to begin.")
+    with tab_practice:
+        _render_practice_analytics(code_map)
+    with tab_post:
+        if post_data:
+            _render_stage_analytics(post_data, code_map, key_prefix="post")
+        else:
+            st.info(
+                "You haven't taken your Post-Test yet. It unlocks once you've cleared "
+                "every Practice recommendation (all units at their target Knowledge Level)."
+            )
+
+
+def _render_stage_analytics(stage_data: dict, code_map: dict, key_prefix: str):
+    """Render one Test stage's analytics: status/date/score tiles, Mastered vs
+    Remedial pie, per-unit Knowledge Level bar, and the unit summary table."""
+    units = stage_data.get("units", [])
+    status = stage_data.get("status", "FAIL")
+    completed_at = stage_data.get("completed_at")
+    score = stage_data.get("score", 0)
 
     # --- Stat tiles ---------------------------------------------------
-    # No "Total Test Attempts" counter - the Test is a one-time event (see
-    # utils/gating.py / QuizService.start_quiz, which refuses a retake),
-    # so a count would only ever read 0 or 1. "Test Completed" says the
-    # same thing more clearly; ongoing progress lives in Practice Analytics.
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         st.metric(
-            label="Latest Test Status",
-            value=current_status,
+            label="Status",
+            value=status,
             help="PASS requires all six units to be Mastered"
         )
-    # with col2:
-    #     st.metric(
-    #         label="Test Completed",
-    #         value="Yes" if has_attempts else "No",
-    #         help="The Test is a one-time assessment - it cannot be retaken"
-    #     )
     with col2:
         st.metric(
-            label="Latest Test Date",
-            value=_format_date(latest_attempt_date),
-            help="Date of your completed Test"
+            label="Date",
+            value=_format_date(completed_at),
+            help="Date you completed this Test stage"
+        )
+    with col3:
+        st.metric(
+            label="Total Points",
+            value=f"{score:g}" if isinstance(score, (int, float)) else score,
+            help="Total points scored on this Test stage"
         )
 
     if not units:
@@ -155,7 +183,7 @@ def _render_test_analytics(code_map: dict):
             margin=dict(t=10, b=10, l=10, r=10),
             **CHART_LAYOUT_DEFAULTS,
         )
-        st.plotly_chart(pie_fig, use_container_width=True)
+        st.plotly_chart(pie_fig, use_container_width=True, key=f"{key_prefix}_pie")
 
     # --- Bar chart: per-unit Knowledge Level ----------------------------
     with chart_col2:
@@ -186,7 +214,7 @@ def _render_test_analytics(code_map: dict):
             margin=dict(t=10, b=10, l=10, r=10),
             **CHART_LAYOUT_DEFAULTS,
         )
-        st.plotly_chart(bar_fig, use_container_width=True)
+        st.plotly_chart(bar_fig, use_container_width=True, key=f"{key_prefix}_bar")
 
     # --- Table -----------------------------------------------------------
     st.markdown("###### Unit Summary")
@@ -198,7 +226,7 @@ def _render_test_analytics(code_map: dict):
     })[["Unit", "Knowledge Level", "Target", "Status"]]
     table_df["Knowledge Level"] = table_df["Knowledge Level"].fillna("-")
 
-    st.dataframe(table_df, use_container_width=True, hide_index=True)
+    st.dataframe(table_df, use_container_width=True, hide_index=True, key=f"{key_prefix}_table")
 
 
 def _render_practice_analytics(code_map: dict):
@@ -247,11 +275,12 @@ def _render_practice_analytics(code_map: dict):
             help="Units still Remedial after your latest Practice results (or your latest Test, before your first Practice session) - the same units Practice questions are sourced from"
         )
 
+    
     if recommended_units:
         full_recommended = [code_map.get(c, c) for c in recommended_units]
-        st.caption("Currently recommended: " + ", ".join(full_recommended))
+        st.info("Currently recommended: " + ", ".join(full_recommended))
     else:
-        st.caption("All units Mastered - nothing currently recommended for Practice.")
+        st.info("All units Mastered - nothing currently recommended for Practice.")
 
     if not progression:
         st.info("No Practice sessions yet. Complete a Practice session to see your progression here.")

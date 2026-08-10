@@ -300,6 +300,22 @@ class MasteryService:
             if latest_attempt else []
         )
 
+        # Pre-Test / Post-Test progression state. The Post-Test unlocks only
+        # once the Pre-Test is done AND every Practice recommendation is
+        # cleared (no effective_remedial_units left) - see QuizService and
+        # utils/gating.py, which both read these flags rather than
+        # re-deriving the rule.
+        completed_stages = self._completed_test_stages(user_id)
+        pre_test_completed = "pre" in completed_stages
+        post_test_completed = "post" in completed_stages
+        post_test_available = pre_test_completed and not post_test_completed and not effective_remedial_units
+        if not pre_test_completed:
+            next_test_stage = "pre"
+        elif post_test_available:
+            next_test_stage = "post"
+        else:
+            next_test_stage = None
+
         return {
             "success": True,
             "has_attempts": latest_attempt is not None,
@@ -308,7 +324,96 @@ class MasteryService:
             "current_status": current_status,
             "units": units,
             "effective_remedial_units": effective_remedial_units,
+            "pre_test_completed": pre_test_completed,
+            "post_test_completed": post_test_completed,
+            "post_test_available": post_test_available,
+            "next_test_stage": next_test_stage,
         }
+
+    def _completed_test_stages(self, user_id: str) -> set:
+        """Set of test_stage values ('pre'/'post') the user has a COMPLETED
+        attempt for. Backs the Pre-Test/Post-Test progression gating."""
+        rows = execute_query(
+            """
+            SELECT DISTINCT test_stage FROM quiz_attempts
+            WHERE user_id = %s AND completed_at IS NOT NULL
+            """,
+            (user_id,),
+            fetch=True,
+        ) or []
+        return {(stage or "pre") for (stage,) in rows}
+
+    def get_test_analytics_by_stage(self, user_id: str) -> Dict:
+        """
+        Per-stage Test Analytics for the dashboard: for each of 'pre' and
+        'post', the latest completed attempt's status/date/score and its own
+        per-unit Knowledge Level snapshot (from user_mastery_level, keyed by
+        that attempt). Returns a stage -> payload map so the dashboard can
+        show Pre-Test and Post-Test results side by side while reusing the
+        exact same rendering for each.
+
+        Each stage payload:
+            {completed_at, status ("PASS"/"FAIL"), score, units: [
+                {unit_code, unit_score, unit_mastery_level, target_level,
+                 mastery_status}]}
+        A stage the user hasn't taken yet is None.
+        """
+        try:
+            stages: Dict[str, Optional[Dict]] = {"pre": None, "post": None}
+            for stage in ("pre", "post"):
+                attempt_rows = execute_query(
+                    """
+                    SELECT id, completed_at, passed, score FROM quiz_attempts
+                    WHERE user_id = %s AND test_stage = %s AND completed_at IS NOT NULL
+                    ORDER BY completed_at DESC
+                    LIMIT 1
+                    """,
+                    (user_id, stage),
+                    fetch=True,
+                )
+                if not attempt_rows:
+                    continue
+                attempt_id, completed_at, passed, score = attempt_rows[0]
+
+                mastery_rows = execute_query(
+                    """
+                    SELECT unit_code, unit_score, unit_mastery_level, mastery_status
+                    FROM user_mastery_level
+                    WHERE attempt_id = %s
+                    """,
+                    (attempt_id,),
+                    fetch=True,
+                ) or []
+                rows_by_code = {
+                    unit_code: (unit_score, unit_mastery_level, _normalize_status(mastery_status))
+                    for unit_code, unit_score, unit_mastery_level, mastery_status in mastery_rows
+                }
+
+                units = []
+                for unit_code, target_level in self.targets.items():
+                    row = rows_by_code.get(unit_code)
+                    if row:
+                        unit_score, unit_mastery_level, mastery_status = row
+                    else:
+                        unit_score, unit_mastery_level, mastery_status = 0, None, REMEDIAL
+                    units.append({
+                        "unit_code": unit_code,
+                        "unit_score": unit_score,
+                        "unit_mastery_level": unit_mastery_level,
+                        "target_level": target_level,
+                        "mastery_status": mastery_status,
+                    })
+
+                stages[stage] = {
+                    "completed_at": completed_at.isoformat() if completed_at else None,
+                    "status": "PASS" if passed else "FAIL",
+                    "score": float(score) if score is not None else 0,
+                    "units": units,
+                }
+
+            return {"success": True, "stages": stages}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to load test analytics: {str(e)}"}
 
     def get_practice_mastered_units_since_last_test(self, user_id: str) -> set:
         """

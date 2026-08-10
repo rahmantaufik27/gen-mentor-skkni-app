@@ -79,7 +79,7 @@ def render_learning_path_page():
     with st.container(border=True):
         st.markdown("###### Get Started")
         st.info(
-            "👈 Choose a learning method from the sidebar: **Reading Materials**, "
+            "Choose a learning method from the sidebar: **Reading Materials**, "
             "**Learning with Chatbot Assistance**, or **Practice with Generative Questions**."
         )
 

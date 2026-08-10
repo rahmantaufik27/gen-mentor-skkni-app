@@ -159,6 +159,29 @@ def get_mastery_summary() -> dict:
         return {"success": False, "error": str(e)}
 
 
+def get_test_analytics() -> dict:
+    """
+    Get the current user's per-stage (Pre-Test / Post-Test) analytics.
+
+    Returns:
+        Dictionary with a "stages" map: {"pre": {...}|None, "post": {...}|None},
+        each stage carrying completed_at, status, score, and per-unit mastery
+        (unit_code, unit_score, unit_mastery_level, target_level, mastery_status).
+    """
+    try:
+        url = f"{backend_endpoint}api/quiz/test-analytics"
+        user_id = st.session_state.get("userId")
+        params = {"user_id": user_id}
+        response = httpx.get(url, params=params, timeout=30)
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"success": False, "error": f"Status code: {response.status_code}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 def get_unit_code_map() -> dict:
     """
     Get the truncated -> full unit_code map (static, not user-specific) -

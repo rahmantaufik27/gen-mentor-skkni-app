@@ -95,6 +95,18 @@ def init_quiz_routes(app, controller: QuizController):
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 
+    @quiz_bp.route("/test-analytics", methods=["GET"])
+    def get_test_analytics():
+        """Get per-stage (Pre-Test / Post-Test) analytics for the dashboard"""
+        user_id = request.args.get("user_id")
+
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID required"}), 400
+
+        result = controller.get_test_analytics(user_id)
+        status_code = 200 if result.get("success") else 400
+        return jsonify(result), status_code
+
     @quiz_bp.route("/unit-codes", methods=["GET"])
     def get_unit_code_map():
         """Get the truncated -> full unit_code map (static, not user-specific)"""

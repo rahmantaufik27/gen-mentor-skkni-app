@@ -265,14 +265,14 @@ def _render_practice_results():
             st.rerun()
 
     with col3:
-        if st.button("Back to Dashboard", use_container_width=True):
+        if st.button("Back to Learning Path", use_container_width=True):
             st.session_state.practice_started = False
             st.session_state.practice_current_question = 0
             st.session_state.practice_session_id = None
             st.session_state.practice_completed = False
             st.session_state.practice_result = None
             st.session_state.practice_show_review = False
-            st.session_state.current_page = "profile"
+            st.session_state.current_page = "learning_path"
             st.rerun()
 
     if st.session_state.practice_show_review:

@@ -7,20 +7,21 @@ Driven entirely by the existing mastery summary
 sidebar (to disable nav buttons) and each page itself (as a guard, in case
 a page is reached some other way).
 
-Rule: a Test (the Placement Test) is taken exactly ONCE, ever - there is no
-retake, regardless of Pass/Fail or later mastery changes:
-- No completed Test yet -> Test enabled (it's the one-time Placement
-  Test), Practice disabled.
-- A Test has been completed -> Test permanently disabled, Practice
-  permanently enabled - Practice is the sole ongoing mechanism for
-  reaching/improving mastery from then on (see
-  MasteryService.get_effective_remedial_units for how Practice results
-  keep refining what's still recommended).
+Rule: the Test is a TWO-stage progression, each stage taken exactly ONCE:
+- No Pre-Test yet -> Pre-Test enabled (the one-time Placement Test),
+  Practice disabled.
+- Pre-Test done -> Practice enabled. The Test stays disabled UNTIL the
+  learner clears every Practice recommendation (all units reach their
+  target Knowledge Level - i.e. no effective_remedial_units left), at
+  which point the Post-Test unlocks.
+- Post-Test done -> Test permanently disabled; Practice stays enabled as
+  the ongoing mechanism.
 
-The backend enforces the one-time rule too (QuizService.start_quiz
-refuses a second attempt) - this frontend gate is what disables the
-Start button/shows the explanatory message before that server call ever
-happens.
+The next stage and its availability are computed server-side in the mastery
+summary (next_test_stage / post_test_available - see
+MasteryService.get_user_mastery_summary), and QuizService.start_quiz
+enforces the same rule; this frontend gate just mirrors it to disable the
+Start button / show the right explanatory message before any server call.
 """
 
 from utils.quiz_api import get_mastery_summary
@@ -30,23 +31,34 @@ def get_learning_gating() -> dict:
     """
     Returns:
         Dictionary with:
-        - test_enabled (bool): True only before the one-time Test has
-          been completed.
+        - test_enabled (bool): True when a Test stage is startable now -
+          before the Pre-Test, or once the Post-Test has unlocked.
         - practice_enabled (bool): True for the rest of the user's
-          lifetime once the Test is done - Practice never gets disabled
-          again, even once every unit is Mastered (there's simply nothing
-          left to recommend at that point, which Practice's own start
-          screen communicates).
+          lifetime once the Pre-Test is done - Practice never gets
+          disabled again.
         - has_attempts (bool), current_status ("PASS"/"FAIL")
-        - is_placement_test (bool): True before the one-time Test - kept
-          as its own field (rather than folding into test_enabled) since
-          it's also used for "Placement Test" vs generic labeling.
+        - is_placement_test (bool): True before the Pre-Test - also used
+          for "Placement Test" vs generic labeling.
+        - test_stage ("pre"/"post"/None): the stage that would start now,
+          or None if no Test is currently available.
+        - pre_test_completed / post_test_completed / post_test_available
+          (bool): the raw progression flags, for stage-aware messaging.
     """
     summary = get_mastery_summary()
     has_attempts = bool(summary.get("has_attempts"))
     current_status = summary.get("current_status", "FAIL")
 
-    test_enabled = not has_attempts
+    # Progression flags from the backend. Fall back to the legacy one-time
+    # behavior (Pre-Test only) if an older backend doesn't send them yet.
+    pre_test_completed = bool(summary.get("pre_test_completed", has_attempts))
+    post_test_completed = bool(summary.get("post_test_completed", False))
+    post_test_available = bool(summary.get("post_test_available", False))
+    next_test_stage = summary.get(
+        "next_test_stage",
+        "pre" if not pre_test_completed else None,
+    )
+
+    test_enabled = next_test_stage is not None
     practice_enabled = has_attempts
 
     return {
@@ -54,5 +66,9 @@ def get_learning_gating() -> dict:
         "practice_enabled": practice_enabled,
         "has_attempts": has_attempts,
         "current_status": current_status,
-        "is_placement_test": not has_attempts,
+        "is_placement_test": not pre_test_completed,
+        "test_stage": next_test_stage,
+        "pre_test_completed": pre_test_completed,
+        "post_test_completed": post_test_completed,
+        "post_test_available": post_test_available,
     }

@@ -134,6 +134,7 @@ def create_app(config=None):
                     "get_all_results": "GET /api/quiz/all-results",
                     "get_results_summary": "GET /api/quiz/results-summary",
                     "get_mastery_summary": "GET /api/quiz/mastery-summary",
+                    "get_test_analytics": "GET /api/quiz/test-analytics",
                     "get_unit_code_map": "GET /api/quiz/unit-codes",
                     "get_recommended_questions": "GET /api/quiz/recommended-questions"
                 },
