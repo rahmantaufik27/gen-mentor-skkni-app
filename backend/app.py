@@ -19,11 +19,15 @@ from services.materials_service import MaterialsService
 from services.practice_service import PracticeService
 from services.chatbot_service import ChatbotService
 from services.learning_path_stats_service import LearningPathStatsService
+from services.notes_service import NotesService
+from services.reflection_service import ReflectionService
 from controllers.quiz_controller import QuizController
 from controllers.materials_controller import MaterialsController
 from controllers.practice_controller import PracticeController
 from controllers.chatbot_controller import ChatbotController
 from controllers.learning_path_stats_controller import LearningPathStatsController
+from controllers.notes_controller import NotesController
+from controllers.reflection_controller import ReflectionController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
 from routes.materials_routes import init_materials_routes
@@ -31,6 +35,8 @@ from routes.admin_routes import init_admin_routes
 from routes.practice_routes import init_practice_routes
 from routes.chatbot_routes import init_chatbot_routes
 from routes.learning_path_stats_routes import init_learning_path_stats_routes
+from routes.notes_routes import init_notes_routes
+from routes.reflection_routes import init_reflection_routes
 # Table creation is disabled at startup: the users/quiz schema already exists
 # in the live database and is managed manually, not via these migration scripts.
 # from migrations.001_create_users_table import create_users_table
@@ -88,6 +94,12 @@ def create_app(config=None):
     # Lightweight Learning Path statistics (reads Practice/mastery, appends to
     # its own user_activity log) - see services/learning_path_stats_service.py.
     stats_service = LearningPathStatsService()
+    # Notes/bookmarks - standalone CRUD over its own user_notes table
+    # (see services/notes_service.py), independent of all other modules.
+    notes_service = NotesService()
+    # Learning Reflection - config-backed questions + per-user answers in its
+    # own user_reflections table (see services/reflection_service.py).
+    reflection_service = ReflectionService()
 
     # Initialize controllers
     controller = QuizController(quiz_service)
@@ -95,6 +107,8 @@ def create_app(config=None):
     practice_controller = PracticeController(practice_service)
     chatbot_controller = ChatbotController(chatbot_service)
     stats_controller = LearningPathStatsController(stats_service)
+    notes_controller = NotesController(notes_service)
+    reflection_controller = ReflectionController(reflection_service)
 
     # Initialize routes
     init_quiz_routes(app, controller)
@@ -103,6 +117,8 @@ def create_app(config=None):
     init_practice_routes(app, practice_controller)
     init_chatbot_routes(app, chatbot_controller)
     init_learning_path_stats_routes(app, stats_controller)
+    init_notes_routes(app, notes_controller)
+    init_reflection_routes(app, reflection_controller)
 
     # Initialize authentication
     print("Initializing authentication system...")
@@ -156,6 +172,18 @@ def create_app(config=None):
                 "learning_path": {
                     "get_stats": "GET /api/learning-path/stats",
                     "record_activity": "POST /api/learning-path/activity"
+                },
+                "notes": {
+                    "list": "GET /api/notes",
+                    "keys": "GET /api/notes/keys",
+                    "create": "POST /api/notes",
+                    "delete": "DELETE /api/notes"
+                },
+                "reflection": {
+                    "get_questions": "GET /api/reflection/questions",
+                    "get_answers": "GET /api/reflection/answers",
+                    "save_answer": "POST /api/reflection/answers",
+                    "delete_answer": "DELETE /api/reflection/answers"
                 },
                 "admin": {
                     "login": "POST /api/admin/login",

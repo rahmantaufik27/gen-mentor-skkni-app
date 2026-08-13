@@ -14,6 +14,8 @@ import streamlit.components.v1 as components
 
 from utils.materials_api import get_all_materials, get_recommended_materials
 from utils.practice_api import record_material_view
+from utils.notes_api import get_saved_source_ids, SOURCE_MATERIAL
+from components.notes import render_save_button
 
 TYPE_ICONS = {
     "presentation": "📄",
@@ -58,8 +60,30 @@ def _to_embed_url(url: str) -> str:
     return url
 
 
-def _render_material_list(materials: list, key_prefix: str, show_status: bool):
-    """Render one card per material with a View button that opens the inline viewer."""
+def _material_source_id(material: dict) -> str:
+    """Stable id for a material note. Materials have no DB id, so the URL is the
+    most stable reference; fall back to title+unit when there's no URL."""
+    return material.get("url") or f"{material.get('title', '')}|{material.get('unit_code', '')}"
+
+
+def _material_note_fields(material: dict) -> dict:
+    """Build the note payload (snapshot_text + source_ref) for a material so it
+    stays understandable and can be reopened later."""
+    unit = material.get("unit_code", "-")
+    mtype = str(material.get("type", "-")).title()
+    snapshot = f"{material.get('title', 'Untitled')}  (Unit {unit} · {mtype})"
+    source_ref = {
+        "title": material.get("title"),
+        "type": material.get("type"),
+        "url": material.get("url"),
+        "unit_code": material.get("unit_code"),
+    }
+    return {"snapshot_text": snapshot, "title": material.get("title"), "source_ref": source_ref}
+
+
+def _render_material_list(materials: list, key_prefix: str, show_status: bool, saved_ids: set):
+    """Render one card per material with a View button that opens the inline
+    viewer and a Save-to-Notes toggle."""
     for idx, material in enumerate(materials):
         with st.container(border=True):
             col1, col2 = st.columns([5, 1])
@@ -87,6 +111,13 @@ def _render_material_list(materials: list, key_prefix: str, show_status: bool):
                     record_material_view(material.get("unit_code"))
                     st.rerun()
 
+                fields = _material_note_fields(material)
+                render_save_button(
+                    SOURCE_MATERIAL, _material_source_id(material),
+                    fields["snapshot_text"], title=fields["title"], source_ref=fields["source_ref"],
+                    saved_ids=saved_ids, key=f"note_{key_prefix}_{idx}",
+                )
+
 
 def _render_selected_material_viewer():
     """Render the inline viewer for whatever material is currently selected, if any."""
@@ -111,6 +142,11 @@ def _render_selected_material_viewer():
 
 def render_reading_materials():
     """Render the Reading Materials learning method: recommended + all materials, with an inline viewer."""
+    # Which materials the user has already saved to Notes - fetched once per
+    # render so each card's Save/Remove toggle shows the right state without a
+    # per-button lookup.
+    saved_ids = get_saved_source_ids(SOURCE_MATERIAL)
+
     tab_recommended, tab_all = st.tabs(["🎯 Recommended for You", "📚 All Materials"])
 
     with tab_recommended:
@@ -124,7 +160,7 @@ def render_reading_materials():
             if not materials:
                 st.info("No recommended materials found for your current gaps yet.")
             else:
-                _render_material_list(materials, key_prefix="rec", show_status=True)
+                _render_material_list(materials, key_prefix="rec", show_status=True, saved_ids=saved_ids)
 
     with tab_all:
         result = get_all_materials()
@@ -135,6 +171,6 @@ def render_reading_materials():
             if not materials:
                 st.info("No materials available yet.")
             else:
-                _render_material_list(materials, key_prefix="all", show_status=False)
+                _render_material_list(materials, key_prefix="all", show_status=False, saved_ids=saved_ids)
 
     _render_selected_material_viewer()

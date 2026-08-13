@@ -23,12 +23,14 @@ methods or to the sidebar.
 from components.reading_materials import render_reading_materials
 from components.practice import render_practice
 from components.chatbot import render_chatbot
+from components.notes import render_notes
 
 
 LEARNING_METHODS = {
     "reading_materials": {"label": "Reading Materials", "render": render_reading_materials},
     "chatbot": {"label": "Learning with Chatbot Assistance", "render": render_chatbot},
     "practice": {"label": "Practice with Generative Questions", "render": render_practice},
+    "notes": {"label": "Notes", "render": render_notes},
 }
 
 

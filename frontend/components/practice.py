@@ -27,6 +27,8 @@ import streamlit as st
 from utils.practice_api import start_practice, get_question, submit_answer, complete_practice
 from utils.gating import get_learning_gating
 from utils.quiz_api import get_unit_code_map
+from utils.notes_api import get_saved_source_ids, SOURCE_QUESTION
+from components.notes import render_save_button
 
 
 def _get_code_map() -> dict:
@@ -145,6 +147,7 @@ def _render_practice_progress():
     unit = question_result.get("unit", "")
     bloom_level = question_result.get("bloom_level", "")
     choices = question_result.get("choices", [])
+    question_id = question_result.get("question_id")
 
     progress_percentage = question_number / total_questions
     st.progress(progress_percentage, text=f"Progress: {question_number}/{total_questions} questions")
@@ -181,7 +184,7 @@ def _render_practice_progress():
 
             st.divider()
 
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
 
             with col1:
                 if st.button("Submit Answer", use_container_width=True, type="primary"):
@@ -203,6 +206,19 @@ def _render_practice_progress():
                         st.error(f"Failed to submit answer: {submit_result.get('error')}")
 
             with col2:
+                # Save-to-Notes for this specific question. Snapshot keeps the question
+                # + options so the note stays readable outside the live session.
+                if question_id:
+                    saved_q_ids = get_saved_source_ids(SOURCE_QUESTION)
+                    snapshot = question_text + "\n\n" + "\n".join(f"- {opt}" for opt in choice_options)
+                    render_save_button(
+                        SOURCE_QUESTION, str(question_id), snapshot,
+                        title=f"{unit} · {bloom_level}",
+                        source_ref={"unit": unit, "bloom_level": bloom_level, "question_text": question_text},
+                        saved_ids=saved_q_ids, key=f"note_q_{question_id}",
+                    )
+
+            with col3:
                 if st.button("Exit Practice", use_container_width=True):
                     st.session_state.practice_started = False
                     st.session_state.practice_current_question = 0

@@ -199,8 +199,13 @@ class PracticeService:
 
     @staticmethod
     def _public_question(question: Dict, index: int, total: int) -> Dict:
-        """Question shape sent to the client - never includes correct_option_id."""
+        """Question shape sent to the client - never includes correct_option_id.
+
+        question_id IS included so the client can reference this specific
+        question when saving it to Notes (see the Notes feature); it is the
+        Neo4j question id, not the answer, so exposing it is safe."""
         return {
+            "question_id": question.get("question_id"),
             "question_number": index + 1,
             "total_questions": total,
             "question_text": question["question_text"],

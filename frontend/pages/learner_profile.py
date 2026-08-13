@@ -34,6 +34,7 @@ PAGE_TITLES = {
     "reading_materials": ("Reading Materials", "Materials recommended based on your mastery gaps"),
     "chatbot": ("Learning with Chatbot Assistance", "Chat with an AI tutor for personalized help"),
     "practice": ("Practice with Generative Questions", "Adaptive practice questions for your weakest units"),
+    "notes": ("Notes", "Content you've bookmarked from across your Learning Path"),
     "test": ("Test", "Test your knowledge across all six units"),
 }
 # Admin is a separate module (pages/admin_login.py + pages/admin_dashboard.py)
@@ -137,6 +138,16 @@ elif st.session_state.current_page == "practice":
             exec(f.read())
     except Exception as e:
         st.error(f"Failed to load Practice page: {str(e)}")
+
+elif st.session_state.current_page == "notes":
+    # ====================================================================
+    # NOTES PAGE (Learning Path -> Notes)
+    # ====================================================================
+    try:
+        with open("pages/notes.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Notes page: {str(e)}")
 
 else:  # profile (default)
     # ====================================================================

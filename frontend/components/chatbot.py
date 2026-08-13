@@ -13,14 +13,28 @@ the database, Neo4j, the user model, recommendations, or any adaptive-learning
 state - it only manages its own chat history in session state.
 """
 
+import hashlib
+import uuid
+
 import streamlit as st
 
 from utils.chatbot_api import send_chat_message
 from utils.practice_api import record_chatbot_attempt
+from utils.notes_api import get_saved_source_ids, SOURCE_CHAT
+from components.notes import render_save_button
 
 # Session-state key that holds this chat's history. Prefixed to avoid
 # colliding with any other component's state.
 _HISTORY_KEY = "chatbot_messages"
+# A per-conversation id, kept in the note's source_ref so a saved message can be
+# traced back to the discussion it came from (reset when the chat is cleared).
+_CONV_KEY = "chatbot_conversation_id"
+
+
+def _chat_source_id(content: str) -> str:
+    """Stable id for a chat message note - a content hash, so saving the same
+    message content twice is a no-op (dedupe) rather than a duplicate."""
+    return "msg_" + hashlib.md5((content or "").encode("utf-8")).hexdigest()[:16]
 
 _WELCOME = (
     "👋 Hi! I'm your learning assistant. Ask me anything about your study "
@@ -31,12 +45,30 @@ _WELCOME = (
 def _init_state():
     if _HISTORY_KEY not in st.session_state:
         st.session_state[_HISTORY_KEY] = []
+    if _CONV_KEY not in st.session_state:
+        st.session_state[_CONV_KEY] = str(uuid.uuid4())
+
+
+def _render_assistant_note_button(content: str, saved_chat_ids: set, index):
+    """Save-to-Notes toggle for one assistant message, snapshotting its text."""
+    conversation_id = st.session_state.get(_CONV_KEY)
+    _, note_col = st.columns([4, 1])
+    with note_col:
+        render_save_button(
+            SOURCE_CHAT, _chat_source_id(content), content,
+            title="Chatbot answer",
+            source_ref={"conversation_id": conversation_id, "role": "assistant", "index": index},
+            saved_ids=saved_chat_ids, key=f"note_chat_{index}",
+        )
 
 
 def render_chatbot():
     """Render the Learning with Chatbot Assistance chat interface."""
     _init_state()
     history = st.session_state[_HISTORY_KEY]
+    # Which assistant messages are already saved to Notes - fetched once so each
+    # message's toggle renders in the right state.
+    saved_chat_ids = get_saved_source_ids(SOURCE_CHAT)
 
     # --- Header + reset ---------------------------------------------------
     header_col, action_col = st.columns([4, 1])
@@ -49,6 +81,7 @@ def render_chatbot():
         # message, since this button renders before the input is processed.)
         if st.button("🗑️ Clear chat", use_container_width=True):
             st.session_state[_HISTORY_KEY] = []
+            st.session_state[_CONV_KEY] = str(uuid.uuid4())
             st.rerun()
 
     # st.divider()
@@ -59,9 +92,12 @@ def render_chatbot():
         with st.chat_message("assistant"):
             st.markdown(_WELCOME)
     else:
-        for msg in history:
+        for idx, msg in enumerate(history):
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
+                # Offer Save-to-Notes on assistant answers (the useful bits).
+                if msg["role"] == "assistant" and msg.get("content"):
+                    _render_assistant_note_button(msg["content"], saved_chat_ids, idx)
 
     # --- Input + reply ----------------------------------------------------
     if prompt:
@@ -85,6 +121,10 @@ def render_chatbot():
                 reply = result.get("reply", "")
                 st.markdown(reply)
                 history.append({"role": "assistant", "content": reply})
+                # Let the learner save this answer right away (it's brand new,
+                # so it won't be in saved_chat_ids yet -> shows "Save to Notes").
+                if reply:
+                    _render_assistant_note_button(reply, saved_chat_ids, len(history) - 1)
             else:
                 # Keep the user's message in history so they can see what they
                 # asked, but don't record a bogus assistant turn - they can
