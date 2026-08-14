@@ -104,12 +104,13 @@ def _render_material_list(materials: list, key_prefix: str, show_status: bool, s
                 else:
                     st.caption(meta)
             with col2:
-                if st.button("View", key=f"view_{key_prefix}_{idx}", use_container_width=True):
-                    st.session_state["selected_material"] = material
+                if st.button("Open Material", type="primary", key=f"view_{key_prefix}_{idx}", use_container_width=True):
                     # Fire-and-forget: count this material open for Learning Path
                     # stats. Never blocks or breaks the viewer if it fails.
                     record_material_view(material.get("unit_code"))
-                    st.rerun()
+                    # Open the material in a modal dialog so it's immediately
+                    # visible in the viewport (rather than below the fold).
+                    _material_dialog(material)
 
                 fields = _material_note_fields(material)
                 render_save_button(
@@ -119,25 +120,20 @@ def _render_material_list(materials: list, key_prefix: str, show_status: bool, s
                 )
 
 
-def _render_selected_material_viewer():
-    """Render the inline viewer for whatever material is currently selected, if any."""
-    material = st.session_state.get("selected_material")
-    if not material:
-        return
+@st.dialog("Reading Material", width="large")
+def _material_dialog(material: dict):
+    """Show the selected material inside a modal dialog so its content is
+    immediately visible in the viewport (centered overlay), instead of an
+    inline viewer that could sit below the fold. Dismiss via the dialog's
+    built-in close control."""
+    st.markdown(f"#### {_type_icon(material.get('type'))} {material.get('title', 'Untitled')}")
+    st.caption(
+        f"Unit: {material.get('unit_code', '-')} · Type: {str(material.get('type', '-')).title()}"
+    )
 
-    st.markdown("")
-    with st.container(border=True):
-        col1, col2 = st.columns([5, 1])
-        with col1:
-            st.markdown(f"#### {_type_icon(material.get('type'))} {material.get('title', 'Untitled')}")
-        with col2:
-            if st.button("✕ Close", key="close_material_viewer", use_container_width=True):
-                st.session_state["selected_material"] = None
-                st.rerun()
-
-        embed_url = _to_embed_url(material.get("url", ""))
-        components.iframe(embed_url, height=600, scrolling=True)
-        st.caption(f"Having trouble viewing it here? [Open in a new tab ↗]({material.get('url', '')})")
+    embed_url = _to_embed_url(material.get("url", ""))
+    components.iframe(embed_url, height=600, scrolling=True)
+    st.caption(f"Having trouble viewing it here? [Open in a new tab ↗]({material.get('url', '')})")
 
 
 def render_reading_materials():
@@ -172,5 +168,3 @@ def render_reading_materials():
                 st.info("No materials available yet.")
             else:
                 _render_material_list(materials, key_prefix="all", show_status=False, saved_ids=saved_ids)
-
-    _render_selected_material_viewer()

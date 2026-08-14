@@ -84,22 +84,28 @@ def render_chatbot():
             st.session_state[_CONV_KEY] = str(uuid.uuid4())
             st.rerun()
 
-    # st.divider()
+    # --- Conversation window ---------------------------------------------
+    # A fixed-height, scrollable container holds the whole conversation, so it
+    # reads like a standard chat: messages flow top (oldest) to bottom
+    # (newest), the window scrolls, and the input stays just below it. New
+    # turns are written into this same container so they appear at the bottom.
+    conversation = st.container(height=460)
+    with conversation:
+        if not history:
+            with st.chat_message("assistant"):
+                st.markdown(_WELCOME)
+        else:
+            for idx, msg in enumerate(history):
+                with st.chat_message(msg["role"]):
+                    st.markdown(msg["content"])
+                    # Offer Save-to-Notes on assistant answers (the useful bits).
+                    if msg["role"] == "assistant" and msg.get("content"):
+                        _render_assistant_note_button(msg["content"], saved_chat_ids, idx)
+
+    # --- Input (kept at the bottom, below the conversation) --------------
     prompt = st.chat_input("Type your question…")
 
-    # --- Conversation history --------------------------------------------
-    if not history:
-        with st.chat_message("assistant"):
-            st.markdown(_WELCOME)
-    else:
-        for idx, msg in enumerate(history):
-            with st.chat_message(msg["role"]):
-                st.markdown(msg["content"])
-                # Offer Save-to-Notes on assistant answers (the useful bits).
-                if msg["role"] == "assistant" and msg.get("content"):
-                    _render_assistant_note_button(msg["content"], saved_chat_ids, idx)
-
-    # --- Input + reply ----------------------------------------------------
+    # --- Reply ------------------------------------------------------------
     if prompt:
         prompt = prompt.strip()
         if not prompt:
@@ -110,25 +116,28 @@ def render_chatbot():
         # pure analytics ping - it does NOT feed the chatbot any user/mastery
         # data, so the assistant stays a standalone, independent module.
         record_chatbot_attempt()
-        with st.chat_message("user"):
-            st.markdown(prompt)
+        # Write the new turn into the conversation window so it lands at the
+        # bottom (newest visible) and the window scrolls to it.
+        with conversation:
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking…"):
-                result = send_chat_message(history)
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking…"):
+                    result = send_chat_message(history)
 
-            if result.get("success"):
-                reply = result.get("reply", "")
-                st.markdown(reply)
-                history.append({"role": "assistant", "content": reply})
-                # Let the learner save this answer right away (it's brand new,
-                # so it won't be in saved_chat_ids yet -> shows "Save to Notes").
-                if reply:
-                    _render_assistant_note_button(reply, saved_chat_ids, len(history) - 1)
-            else:
-                # Keep the user's message in history so they can see what they
-                # asked, but don't record a bogus assistant turn - they can
-                # simply ask again once the issue (e.g. Ollama not running) is
-                # resolved.
-                error = result.get("error") or "The assistant is unavailable right now. Please try again."
-                st.error(f"⚠️ {error}")
+                if result.get("success"):
+                    reply = result.get("reply", "")
+                    st.markdown(reply)
+                    history.append({"role": "assistant", "content": reply})
+                    # Let the learner save this answer right away (it's brand new,
+                    # so it won't be in saved_chat_ids yet -> shows "Save to Notes").
+                    if reply:
+                        _render_assistant_note_button(reply, saved_chat_ids, len(history) - 1)
+                else:
+                    # Keep the user's message in history so they can see what they
+                    # asked, but don't record a bogus assistant turn - they can
+                    # simply ask again once the issue (e.g. Ollama not running) is
+                    # resolved.
+                    error = result.get("error") or "The assistant is unavailable right now. Please try again."
+                    st.error(f"⚠️ {error}")

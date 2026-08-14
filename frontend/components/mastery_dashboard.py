@@ -89,7 +89,7 @@ def _render_test_analytics(code_map: dict):
     (_render_stage_analytics) is identical for both, so the two stages stay
     directly comparable and the existing chart/table structure is preserved.
     """
-    st.markdown("#### 📊 Test Analytics")
+    st.markdown("#### 📊 Data Analytics")
 
     analytics = get_test_analytics()
     if not analytics.get("success"):
@@ -231,7 +231,7 @@ def _render_stage_analytics(stage_data: dict, code_map: dict, key_prefix: str):
 
 def _render_practice_analytics(code_map: dict):
     """Practice Analytics: total sessions, current recommended unit(s), Knowledge Level progression."""
-    st.markdown("#### 📝 Practice Analytics")
+    # st.markdown("#### 📝 Practice Analytics")
 
     analytics = get_practice_analytics()
     if not analytics.get("success"):

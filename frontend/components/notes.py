@@ -93,7 +93,7 @@ def _open_source(note: dict, key: str):
     if source_type == SOURCE_MATERIAL:
         url = ref.get("url") or note.get("source_id")
         if url and str(url).startswith("http"):
-            st.link_button("🔗 Open material", url, use_container_width=True)
+            st.link_button("Open material", url, use_container_width=True)
         else:
             st.button("Open material", key=key, use_container_width=True, disabled=True,
                       help="No link stored for this material")
@@ -156,7 +156,7 @@ def _render_bookmarks(source_type: str):
                 st.caption(f"Saved {_format_date(note.get('created_at'))}")
             with action_col:
                 _open_source(note, key=f"open_{note_id}")
-                if st.button("🗑️ Remove note", key=f"remove_{note_id}", use_container_width=True):
+                if st.button("Remove note", key=f"remove_{note_id}", use_container_width=True):
                     res = remove_note(note_id=note_id)
                     if res.get("success"):
                         st.toast("Note removed")
@@ -206,11 +206,11 @@ def _render_learning_reflection():
     # --- Single action button for the whole form -------------------------
     has_any_saved = bool(answers)
     st.markdown("")
-    save_col, _ = st.columns([1, 2])
-    with save_col:
-        button_label = "Update Reflection" if has_any_saved else "Save Reflection"
-        if st.button(button_label, type="primary", use_container_width=True, key="refl_save_all"):
-            _save_all_reflections(questions.get("sections", []), answers)
+    # save_col, _ = st.columns([1, 2])
+    # with save_col:
+    button_label = "Update Reflection" if has_any_saved else "Save Reflection"
+    if st.button(button_label, type="primary", use_container_width=True, key="refl_save_all"):
+        _save_all_reflections(questions.get("sections", []), answers)
 
 
 def _save_all_reflections(sections: list, answers: dict):
