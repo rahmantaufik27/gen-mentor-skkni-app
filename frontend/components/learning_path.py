@@ -24,6 +24,7 @@ from components.reading_materials import render_reading_materials
 from components.practice import render_practice
 from components.chatbot import render_chatbot
 from components.notes import render_notes
+from components.reflection_learning import render_reflection_learning
 
 
 LEARNING_METHODS = {
@@ -31,6 +32,7 @@ LEARNING_METHODS = {
     "chatbot": {"label": "Learning with Chatbot Assistance", "render": render_chatbot},
     "practice": {"label": "Practice with Generative Questions", "render": render_practice},
     "notes": {"label": "Notes", "render": render_notes},
+    "reflection_learning": {"label": "Reflection Learning", "render": render_reflection_learning},
 }
 
 

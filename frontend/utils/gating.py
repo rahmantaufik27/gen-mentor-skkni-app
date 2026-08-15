@@ -24,8 +24,10 @@ enforces the same rule; this frontend gate just mirrors it to disable the
 Start button / show the right explanatory message before any server call.
 """
 
-from utils.quiz_api import get_mastery_summary
+from turtle import st
 
+from utils.quiz_api import get_mastery_summary
+from utils.practice_api import get_practice_analytics, complete_practice
 
 def get_learning_gating() -> dict:
     """
@@ -72,3 +74,24 @@ def get_learning_gating() -> dict:
         "post_test_completed": post_test_completed,
         "post_test_available": post_test_available,
     }
+
+def get_content_unlock_state() -> dict:
+    """
+    Whether Learning Path content (Materials, Chatbot, Notes, Reflection...)
+    is unlocked yet: true once the learner has completed at least one Test
+    stage (Pre/Post) or one Practice session.
+    """
+    unlocked = bool(st.session_state.get("content_unlocked_this_session"))
+    return {"unlocked": unlocked}
+
+    # gating = get_learning_gating()  # already fetches mastery summary
+    # practice = get_practice_analytics()
+    # # complete_practice(st.session_state.get("practice_session_id", ""))  # ensure any in-progress session is finalized 
+    # has_completed = bool(practice.get("success") and practice.get("total_sessions", 0) > 0)
+
+    # # has_practice = bool(practice.get("success") and practice.get("total_sessions", 0) > 0)
+    # # unlocked = gating["has_attempts"] or has_practice
+    # unlocked = gating["has_attempts"] or has_completed
+
+    # # return {"unlocked": unlocked, "has_attempts": gating["has_attempts"], "has_practice": has_practice}
+    # return {"unlocked": unlocked, "has_attempts": gating["has_attempts"], "has_completed": has_completed}

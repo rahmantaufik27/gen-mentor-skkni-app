@@ -120,7 +120,7 @@ def _render_practice_start():
             st.session_state.practice_session_id = result.get("session_id")
             st.session_state.practice_current_question = 0
             st.session_state.practice_started = True
-            st.session_state.practice_completed = False
+            st.session_state.practice_completed = False           
             st.rerun()
         else:
             st.error(result.get("error", "No practice questions recommended right now."))
@@ -135,7 +135,7 @@ def _render_practice_progress():
     """Render practice in progress"""
     session_id = st.session_state.practice_session_id
     question_index = st.session_state.practice_current_question
-
+    
     question_result = get_question(session_id, question_index)
     if not question_result.get("success"):
         st.error("Failed to load question")
@@ -156,7 +156,7 @@ def _render_practice_progress():
 
     with st.container(border=True):
         st.subheader(f"Question {question_number} of {total_questions}")
-
+        
         col1, col2 = st.columns(2)
         with col1:
             st.write(f"**Unit:** {unit}")

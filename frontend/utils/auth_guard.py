@@ -8,6 +8,7 @@ verify anything with the server.
 """
 
 import streamlit as st
+# from utils.gating import get_content_unlock_state
 
 
 def require_authentication():
@@ -76,3 +77,19 @@ def logout_user():
     
     st.success("✅ Logged out successfully!")
     st.rerun()
+
+# def require_content_unlocked():
+#     """
+#     Content Guard - stops execution until the learner has completed at least
+#     one Test/Practice stage. Call right after require_authentication().
+#     """
+#     state = get_content_unlock_state()
+#     if not state["unlocked"]:
+#         st.warning(
+#             "This section unlocks once you've completed your Test / Practice."
+#         )
+#         if st.button("Go to Test"):
+#             st.session_state.current_page = "test"
+#             st.rerun()
+#         st.stop()
+#     return True
