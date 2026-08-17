@@ -69,23 +69,32 @@ def render_sidebar_nav(active: str, submenus: dict = None):
     Render the left navigation sidebar (brand + nav items), with optional
     nested submenu items shown indented under a NAV_ITEMS entry - e.g.
     Learning Path's Reading Materials / Learning with Chatbot Assistance /
-    Practice with Generative Questions items.
+    Practice with Generative Questions / Notes / Reflection Learning items.
+
+    Each submenu entry is either:
+      - a direct nav item {"key":..., "label":...} - clicking it navigates
+        straight to that page, exactly like a top-level item; or
+      - a nested group {"label":..., "children": [{"key":..., "label":...}, ...]}
+        (e.g. Learning Path's "Notes" group, containing Cue Questions and
+        Key Points) - rendered as an expandable/dropdown submenu
+        (st.expander) that reveals its children's nav buttons when opened;
+        auto-expanded whenever `active` is one of its children so the
+        current page's group is never hidden.
 
     Submenu items are always visible (not gated by their parent being
-    active) and are full pages in their own right: clicking one navigates
-    straight to it by setting st.session_state.current_page to the child's
-    key, exactly like a top-level item - so `active` alone (checked against
-    both NAV_ITEMS and submenu keys) determines every highlight. Every item
-    stays clickable at all times - Test/Practice eligibility (see
-    utils/gating.py) is enforced by each page disabling its own Start
-    button instead, never by hiding or disabling the menu.
+    active) and every leaf is a full page in its own right, so `active`
+    alone (checked against NAV_ITEMS, submenu, and group-child keys)
+    determines every highlight. Every item stays clickable at all times -
+    Test/Practice eligibility (see utils/gating.py) is enforced by each
+    page disabling its own Start button instead, never by hiding or
+    disabling the menu.
 
     Args:
         active: current page key (st.session_state.current_page)
-        submenus: {item_key: [{"key":..., "label":...}, ...]} - optional.
-            Any NAV_ITEMS entry with a matching key gets these children
-            rendered underneath it, always visible, generic enough for any
-            future nav item to gain a submenu the same way.
+        submenus: {item_key: [entry, ...]} - optional. Any NAV_ITEMS entry
+            with a matching key gets these entries rendered underneath it,
+            always visible, generic enough for any future nav item to gain
+            a submenu (nested or flat) the same way.
     """
     submenus = submenus or {}
 
@@ -103,19 +112,44 @@ def render_sidebar_nav(active: str, submenus: dict = None):
                 st.session_state.current_page = item["key"]
                 st.rerun()
 
-            children = submenus.get(item["key"])
-            if children:
+            entries = submenus.get(item["key"])
+            if entries:
                 with st.container(key=f"submenu_{item['key']}"):
-                    for child in children:
-                        child_is_active = active == child["key"]
-                        if st.button(
-                            child["label"],
-                            use_container_width=True,
-                            type="primary" if child_is_active else "secondary",
-                            key=f"nav_child_{item['key']}_{child['key']}",
-                        ):
-                            st.session_state.current_page = child["key"]
-                            st.rerun()
+                    for entry in entries:
+                        _render_submenu_entry(item["key"], entry, active)
+
+
+def _render_submenu_entry(parent_key: str, entry: dict, active: str):
+    """
+    Render one Learning-Path-style submenu entry under `parent_key`: either
+    a direct nav button ({"key", "label"}) or, if it has "children", a
+    dropdown group (st.expander) of nav buttons - see render_sidebar_nav.
+    """
+    children = entry.get("children")
+    if children:
+        group_is_active = any(active == child["key"] for child in children)
+        with st.expander(entry["label"], expanded=group_is_active):
+            for child in children:
+                child_is_active = active == child["key"]
+                if st.button(
+                    child["label"],
+                    use_container_width=True,
+                    type="primary" if child_is_active else "secondary",
+                    key=f"nav_grandchild_{parent_key}_{child['key']}",
+                ):
+                    st.session_state.current_page = child["key"]
+                    st.rerun()
+        return
+
+    entry_is_active = active == entry["key"]
+    if st.button(
+        entry["label"],
+        use_container_width=True,
+        type="primary" if entry_is_active else "secondary",
+        key=f"nav_child_{parent_key}_{entry['key']}",
+    ):
+        st.session_state.current_page = entry["key"]
+        st.rerun()
 
 
 def render_app_header(title: str, subtitle: str = "", user_name: str = "", user_email: str = "",show_logout: bool = True) -> bool:

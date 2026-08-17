@@ -34,7 +34,8 @@ PAGE_TITLES = {
     "reading_materials": ("Reading Materials", "Materials recommended based on your mastery gaps"),
     "chatbot": ("Learning with Chatbot Assistance", "Chat with an AI tutor for personalized help"),
     "practice": ("Practice with Generative Questions", "Adaptive practice questions for your weakest units"),
-    "notes": ("Notes", "Content you've bookmarked from across your Learning Path"),
+    "cue_questions": ("Cue Questions", "Saved question notes plus your own free-form question notes"),
+    "key_points": ("Key Points", "Saved material and chat notes plus your own free-form notes"),
     "reflection_learning": ("Reflection Learning", "Turn today's learning into a concrete action plan"),
     "test": ("Test", "Test your knowledge across all six units"),
 }
@@ -140,15 +141,25 @@ elif st.session_state.current_page == "practice":
     except Exception as e:
         st.error(f"Failed to load Practice page: {str(e)}")
 
-elif st.session_state.current_page == "notes":
+elif st.session_state.current_page == "cue_questions":
     # ====================================================================
-    # NOTES PAGE (Learning Path -> Notes)
+    # CUE QUESTIONS PAGE (Learning Path -> Cue Questions)
     # ====================================================================
     try:
-        with open("pages/notes.py", "r", encoding="utf-8") as f:
+        with open("pages/cue_questions.py", "r", encoding="utf-8") as f:
             exec(f.read())
     except Exception as e:
-        st.error(f"Failed to load Notes page: {str(e)}")
+        st.error(f"Failed to load Cue Questions page: {str(e)}")
+
+elif st.session_state.current_page == "key_points":
+    # ====================================================================
+    # KEY POINTS PAGE (Learning Path -> Key Points)
+    # ====================================================================
+    try:
+        with open("pages/key_points.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Key Points page: {str(e)}")
 
 elif st.session_state.current_page == "reflection_learning":
     # ====================================================================

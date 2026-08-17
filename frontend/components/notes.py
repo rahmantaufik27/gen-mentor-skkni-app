@@ -1,22 +1,22 @@
 """
-Notes learning method (Learning Path -> Notes).
+Bookmark notes module (used by Learning Path -> Cue Questions -> "Cue
+Question" tab, and Learning Path -> Key Points -> "Materials"/"Chat" tabs).
 
 Two public entry points:
   - render_save_button(...): a reusable Save-to-Notes / Remove-from-Notes toggle
     dropped into any supported content (Reading Materials, Practice Questions,
-    Chatbot Discussions). It's the ONLY thing those components import from here,
-    so Notes stays modular and they stay independent of the Notes page itself.
-  - render_notes(): the Notes page - tabs for Free Notes (the "Cue Questions &
-    Key Points" reflection prompts) plus one tab per bookmark source type
-    (Materials, Questions, Chat), each bookmark showing source type, snapshot
-    content, created date, an "Open source" action, and a "Remove note" action.
+    Chatbot Discussions). Imported by those components directly, so they stay
+    independent of wherever bookmarks are actually browsed.
+  - render_bookmarks(source_type): the saved-bookmarks list for ONE source
+    type (Materials, Questions, or Chat) - each note showing source type,
+    snapshot content, created date, an "Open source" action, and a "Remove
+    note" action. Composed into tabs by components/cue_questions.py (Question
+    bookmarks) and components/key_points.py (Material/Chat bookmarks) -
+    there is no single combined "Notes" page anymore; this module only owns
+    the reusable bookmark pieces.
 
-Bookmark persistence goes through utils/notes_api.py -> /api/notes/* (its own
-user_notes table). The Free Notes tab's Cue Questions form is rendered via
-components/reflection_learning.py::render_reflection_form(), which owns the
-reflection question logic - the Reflection & Action Plan section lives on its
-own "Reflection Learning" page (see pages/reflection_learning.py), sharing the
-same backend/table so no reflection data is duplicated or lost.
+All persistence goes through utils/notes_api.py -> /api/notes/* (its own
+user_notes table); nothing here reads or writes any other module's data.
 """
 
 from datetime import datetime
@@ -27,7 +27,6 @@ from utils.notes_api import (
     save_note, remove_note, list_notes, get_saved_source_ids,
     SOURCE_MATERIAL, SOURCE_QUESTION, SOURCE_CHAT,
 )
-from components.reflection_learning import render_reflection_form
 
 # Display metadata per source type - label + icon, in one place so the toggle,
 # the filter, and the note cards all stay consistent.
@@ -109,43 +108,9 @@ def _open_source(note: dict, key: str):
             st.rerun()
 
 
-def render_notes():
-    """
-    Render the Notes page as tabs: Free Notes (the "Cue Questions & Key
-    Points" reflection prompts) plus one tab per bookmark source type
-    (Materials, Questions, Chat). The Reflection & Action Plan section lives
-    on its own "Reflection Learning" page, not here - see
-    components/reflection_learning.py.
-    """
-    tab_free_notes, tab_materials, tab_questions, tab_chat = st.tabs(
-        ["🗒️ Free Notes", "📄 Materials", "❓ Questions", "💬 Chat"]
-    )
-    with tab_free_notes:
-        _render_free_notes()
-    with tab_materials:
-        _render_bookmarks(SOURCE_MATERIAL)
-    with tab_questions:
-        _render_bookmarks(SOURCE_QUESTION)
-    with tab_chat:
-        _render_bookmarks(SOURCE_CHAT)
-
-
-def _render_free_notes():
-    """Free Notes tab: the "Cue Questions & Key Points" reflection prompts -
-    quick free-text notes to activate prior knowledge before diving in.
-    Rendering/persistence is owned by components/reflection_learning.py so
-    it's shared, unduplicated logic with the Reflection Learning page."""
-    st.caption(
-        "Quick notes to activate what you already know before diving in. "
-        "Answers are saved to your account and loaded when you return."
-    )
-    render_reflection_form(["cue_questions"])
-
-
-def _render_bookmarks(source_type: str):
-    """Render the saved bookmarks for a single source type (the existing Notes
-    list, now scoped per tab). Each note shows its snapshot, created date, an
-    Open-source action, and a Remove action."""
+def render_bookmarks(source_type: str):
+    """Render the saved bookmarks for a single source type. Each note shows
+    its snapshot, created date, an Open-source action, and a Remove action."""
     result = list_notes(source_type)
     if not result.get("success"):
         st.error(f"Failed to load notes: {result.get('error', 'Unknown error')}")

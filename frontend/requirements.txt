@@ -15,3 +15,4 @@ pdfplumber
 httpx
 plotly
 pandas
+streamlit-quill==0.0.3

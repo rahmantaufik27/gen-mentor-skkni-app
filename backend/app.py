@@ -21,6 +21,7 @@ from services.chatbot_service import ChatbotService
 from services.learning_path_stats_service import LearningPathStatsService
 from services.notes_service import NotesService
 from services.reflection_service import ReflectionService
+from services.free_notes_service import FreeNotesService
 from controllers.quiz_controller import QuizController
 from controllers.materials_controller import MaterialsController
 from controllers.practice_controller import PracticeController
@@ -28,6 +29,7 @@ from controllers.chatbot_controller import ChatbotController
 from controllers.learning_path_stats_controller import LearningPathStatsController
 from controllers.notes_controller import NotesController
 from controllers.reflection_controller import ReflectionController
+from controllers.free_notes_controller import FreeNotesController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
 from routes.materials_routes import init_materials_routes
@@ -37,6 +39,7 @@ from routes.chatbot_routes import init_chatbot_routes
 from routes.learning_path_stats_routes import init_learning_path_stats_routes
 from routes.notes_routes import init_notes_routes
 from routes.reflection_routes import init_reflection_routes
+from routes.free_notes_routes import init_free_notes_routes
 # Table creation is disabled at startup: the users/quiz schema already exists
 # in the live database and is managed manually, not via these migration scripts.
 # from migrations.001_create_users_table import create_users_table
@@ -100,6 +103,10 @@ def create_app(config=None):
     # Learning Reflection - config-backed questions + per-user answers in its
     # own user_reflections table (see services/reflection_service.py).
     reflection_service = ReflectionService()
+    # User-authored WYSIWYG free notes (Cue Questions -> Free Question, Key
+    # Points -> Free Notes) - standalone CRUD over its own user_free_notes
+    # table (see services/free_notes_service.py).
+    free_notes_service = FreeNotesService()
 
     # Initialize controllers
     controller = QuizController(quiz_service)
@@ -109,6 +116,7 @@ def create_app(config=None):
     stats_controller = LearningPathStatsController(stats_service)
     notes_controller = NotesController(notes_service)
     reflection_controller = ReflectionController(reflection_service)
+    free_notes_controller = FreeNotesController(free_notes_service)
 
     # Initialize routes
     init_quiz_routes(app, controller)
@@ -119,6 +127,7 @@ def create_app(config=None):
     init_learning_path_stats_routes(app, stats_controller)
     init_notes_routes(app, notes_controller)
     init_reflection_routes(app, reflection_controller)
+    init_free_notes_routes(app, free_notes_controller)
 
     # Initialize authentication
     print("Initializing authentication system...")
@@ -184,6 +193,12 @@ def create_app(config=None):
                     "get_answers": "GET /api/reflection/answers",
                     "save_answer": "POST /api/reflection/answers",
                     "delete_answer": "DELETE /api/reflection/answers"
+                },
+                "free_notes": {
+                    "list": "GET /api/free-notes",
+                    "create": "POST /api/free-notes",
+                    "update": "PUT /api/free-notes",
+                    "delete": "DELETE /api/free-notes"
                 },
                 "admin": {
                     "login": "POST /api/admin/login",

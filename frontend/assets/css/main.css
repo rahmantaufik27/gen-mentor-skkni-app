@@ -151,6 +151,46 @@ section[data-testid="stSidebar"] div[class*="st-key-submenu_"] .stButton button 
     padding: 0.4rem 0.55rem !important;
 }
 
+/* Dropdown group inside a submenu (e.g. Learning Path's "Notes" expander
+   nesting Cue Questions / Key Points) - strip Streamlit's default expander
+   box/border so it reads as just another submenu row, and size its header
+   and nested buttons to match their plain-button siblings above. */
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] {
+    border: none !important;
+    background-color: transparent !important;
+    margin-bottom: 2px;
+}
+
+/* The visible boxed/bordered look actually comes from the <details>
+   element inside stExpander, not the stExpander div itself. */
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] details {
+    border: none !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+}
+
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary {
+    padding: 0.4rem 0.55rem !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    color: var(--text) !important;
+    border: none !important;
+}
+
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary:hover {
+    background-color: var(--background) !important;
+}
+
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] svg {
+    color: var(--text-muted) !important;
+    fill: var(--text-muted) !important;
+}
+
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] .stButton button {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.5rem !important;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Header bar (title + user chip)                                        */
 /* ---------------------------------------------------------------------- */

@@ -164,15 +164,19 @@ def _render_reflection_question(question: dict, saved: dict):
 
 
 def render_reflection_learning():
-    """Render the Reflection Learning page: the Reflection & Action Plan
-    section (Immediate Application, Challenges Expected, Next Learning
-    Action, Motivation Rating) - moved out of the Notes page into its own
-    dedicated Learning Path page. Backed by the same config/API/table as
-    Notes' Cue Questions section, so no reflection data changes hands."""
+    """Render the Reflection Learning page: both the Cue Questions & Key
+    Points section and the Reflection & Action Plan section (Immediate
+    Application, Challenges Expected, Next Learning Action, Motivation
+    Rating), rendered together as ONE form with a single Save/Update button
+    at the bottom - passing both section keys to render_reflection_form in
+    one call (instead of one call per section) is what collapses the two
+    previously-separate Submit buttons into one. Same questions, same
+    backend (config + /api/reflection/* + user_reflections table), so no
+    reflection data changes hands."""
     st.markdown("#### 🧭 Reflection Learning")
     st.caption(
         "Turn today's learning into a concrete action plan. Answers are saved "
         "to your account and loaded when you return - fill in the form and "
         "save it all at once at the bottom."
     )
-    render_reflection_form(["reflection_action_plan"])
+    render_reflection_form(["cue_questions", "reflection_action_plan"])

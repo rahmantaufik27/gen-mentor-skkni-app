@@ -1,13 +1,14 @@
 """
-Notes Page (Learning Path -> Notes)
+Key Points Page (Learning Path -> Key Points)
 
 Route Protection:
 - Requires authentication (redirects to login if not authenticated)
 
-Dedicated full page for the user's saved notes/bookmarks - reachable from the
-Learning Path submenu in the sidebar. Renders components/notes.py::render_notes()
-(backed by /api/notes/*, its own user_notes table). Independent of the
-Test/Practice/mastery logic - see components/learning_path.py.
+Dedicated full page for saved Reading Material and Chatbot Discussion
+bookmarks ("Materials"/"Chat" tabs, moved from the former Notes page
+unchanged) plus user-authored WYSIWYG notes ("Free Notes" tab, new) -
+reachable from the Learning Path submenu in the sidebar. Renders
+components/key_points.py::render_key_points().
 """
 
 import streamlit as st
@@ -20,4 +21,4 @@ from components.learning_path import LEARNING_METHODS
 require_authentication()
 
 with st.container(border=True):
-    LEARNING_METHODS["notes"]["render"]()
+    LEARNING_METHODS["key_points"]["render"]()
