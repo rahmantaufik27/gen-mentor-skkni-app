@@ -9,15 +9,18 @@ user emptied) - independent create/edit/delete per answer, batched into one
 action per the product's UX.
 
 Public entry points:
-  - render_reflection_learning(): the Reflection Learning page - the
-    "Reflection & Action Plan" section (Immediate Application, Challenges
-    Expected, Next Learning Action, Motivation Rating).
+  - render_reflection_learning(): the Reflection Learning page - both the
+    Cue Questions section (Prior Knowledge, Job Application, Role
+    Importance) and the "Reflection & Action Plan" section (Immediate
+    Application, Challenges Expected, Next Learning Action, Motivation
+    Rating), rendered as one form.
   - render_reflection_form(section_keys): generic renderer for one or more
-    configured sections, reused by components/notes.py to show the "Cue
-    Questions & Key Points" section on the Notes page's Free Notes tab. Both
-    pages share the exact same backend (config + /api/reflection/* + the
-    user_reflections table) - only the section(s) shown differ - so no
-    reflection data is duplicated or lost by living on two pages.
+    configured sections - kept generic/reusable even though
+    render_reflection_learning is its only caller today. A section only
+    gets a heading if its config sets a "title" (see
+    backend/data/reflection_questions.json) - the Cue Questions section
+    deliberately has none, so it renders straight into its questions with
+    no section label.
 """
 
 from datetime import datetime
@@ -66,7 +69,8 @@ def render_reflection_form(section_keys: list):
 
     for section in sections:
         with st.container(border=True):
-            st.markdown(f"##### {section.get('title', '')}")
+            if section.get("title"):
+                st.markdown(f"##### {section['title']}")
             if section.get("description"):
                 st.caption(section["description"])
             for question in section.get("questions", []):

@@ -175,26 +175,27 @@ class AuthenticationService:
             cursor = connection.cursor()
             
             cursor.execute(
-                "SELECT id, full_name, email, password_hash FROM users WHERE email = %s",
+                "SELECT id, full_name, email, password_hash, profile_photo_path FROM users WHERE email = %s",
                 (email,)
             )
-            
+
             result = cursor.fetchone()
             cursor.close()
-            
+
             if not result:
                 return False, "Invalid email or password", None
-            
-            user_id, full_name, db_email, password_hash = result
-            
+
+            user_id, full_name, db_email, password_hash, profile_photo_path = result
+
             # Verify password
             if not AuthenticationService.verify_password(password, password_hash):
                 return False, "Invalid email or password", None
-            
+
             user_data = {
                 "id": str(user_id),
                 "full_name": full_name,
-                "email": db_email
+                "email": db_email,
+                "profile_photo_path": profile_photo_path,
             }
             
             return True, "Login successful", user_data
@@ -209,10 +210,10 @@ class AuthenticationService:
     def get_user_by_id(user_id: str) -> Optional[dict]:
         """
         Retrieve user information by ID.
-        
+
         Args:
             user_id: User UUID
-            
+
         Returns:
             User data dictionary or None if not found
         """
@@ -220,28 +221,159 @@ class AuthenticationService:
         try:
             connection = get_db_connection()
             cursor = connection.cursor()
-            
+
             cursor.execute(
-                "SELECT id, full_name, email, created_at FROM users WHERE id = %s",
+                "SELECT id, full_name, email, created_at, profile_photo_path FROM users WHERE id = %s",
                 (user_id,)
             )
-            
+
             result = cursor.fetchone()
             cursor.close()
-            
+
             if not result:
                 return None
-            
-            user_id, full_name, email, created_at = result
+
+            user_id, full_name, email, created_at, profile_photo_path = result
             return {
                 "id": str(user_id),
                 "full_name": full_name,
                 "email": email,
-                "created_at": created_at.isoformat() if created_at else None
+                "created_at": created_at.isoformat() if created_at else None,
+                "profile_photo_path": profile_photo_path,
             }
-            
+
         except Error as e:
             raise Exception(f"Failed to retrieve user: {str(e)}")
+        finally:
+            if connection:
+                connection.close()
+
+    @staticmethod
+    def update_profile(user_id: str, full_name: str) -> Tuple[bool, str]:
+        """
+        Update a user's general identity fields (My Profile page). Email is
+        deliberately not editable here - it's the login identifier, and
+        changing it safely would need its own re-verification flow, which
+        is out of scope for this simple profile form.
+
+        Args:
+            user_id: User UUID
+            full_name: New display name
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not full_name or not full_name.strip():
+            return False, "Full name is required"
+        full_name = full_name.strip()
+
+        connection = None
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE users SET full_name = %s, updated_at = now() WHERE id = %s",
+                (full_name, user_id)
+            )
+            updated = cursor.rowcount > 0
+            connection.commit()
+            cursor.close()
+
+            if not updated:
+                return False, "User not found"
+            return True, "Profile updated successfully"
+        except Error as e:
+            if connection:
+                connection.rollback()
+            return False, f"Failed to update profile: {str(e)}"
+        finally:
+            if connection:
+                connection.close()
+
+    @staticmethod
+    def change_password(user_id: str, current_password: str, new_password: str) -> Tuple[bool, str]:
+        """
+        Change a user's password (My Profile page) - requires the current
+        password to match before the new one is set, same as any normal
+        "change password" flow (not a password reset).
+
+        Args:
+            user_id: User UUID
+            current_password: Must match the stored hash
+            new_password: Replaces it once verified (min 8 chars, same
+                policy as registration)
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        if not current_password or not new_password:
+            return False, "Current and new password are required"
+        if len(new_password) < 8:
+            return False, "New password must be at least 8 characters"
+
+        connection = None
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor()
+            cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+            result = cursor.fetchone()
+            if not result:
+                cursor.close()
+                return False, "User not found"
+
+            if not AuthenticationService.verify_password(current_password, result[0]):
+                cursor.close()
+                return False, "Current password is incorrect"
+
+            new_hash = AuthenticationService.hash_password(new_password)
+            cursor.execute(
+                "UPDATE users SET password_hash = %s, updated_at = now() WHERE id = %s",
+                (new_hash, user_id)
+            )
+            connection.commit()
+            cursor.close()
+            return True, "Password changed successfully"
+        except Error as e:
+            if connection:
+                connection.rollback()
+            return False, f"Failed to change password: {str(e)}"
+        finally:
+            if connection:
+                connection.close()
+
+    @staticmethod
+    def update_profile_photo_path(user_id: str, filename: Optional[str]) -> Tuple[bool, str]:
+        """
+        Record the filename of a user's uploaded profile photo (the actual
+        file write happens in AuthController.upload_profile_photo, which
+        then calls this to point users.profile_photo_path at it).
+
+        Args:
+            user_id: User UUID
+            filename: Filename under backend/storage/profile_photos/
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        connection = None
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor()
+            cursor.execute(
+                "UPDATE users SET profile_photo_path = %s, updated_at = now() WHERE id = %s",
+                (filename, user_id)
+            )
+            updated = cursor.rowcount > 0
+            connection.commit()
+            cursor.close()
+
+            if not updated:
+                return False, "User not found"
+            return True, "Profile photo updated"
+        except Error as e:
+            if connection:
+                connection.rollback()
+            return False, f"Failed to update profile photo: {str(e)}"
         finally:
             if connection:
                 connection.close()

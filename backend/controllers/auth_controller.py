@@ -5,8 +5,20 @@ Parses/validates request JSON, delegates business logic to
 AuthenticationService, and translates results into Flask JSON responses.
 """
 
-from flask import request, jsonify, session
+import glob
+import os
+
+from flask import request, jsonify, session, send_from_directory
 from services.auth_service import AuthenticationService
+from services.learning_path_stats_service import LearningPathStatsService, ACTIVITY_LOGIN
+
+# backend/storage/profile_photos/ - uploaded profile photos, one file per
+# user (named "<user_id>.<ext>"). users.profile_photo_path stores just the
+# filename; this is where it actually lives on disk.
+_PHOTO_STORAGE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "storage", "profile_photos",
+)
+_ALLOWED_PHOTO_EXTENSIONS = (".png", ".jpg", ".jpeg")
 
 
 class AuthController:
@@ -114,7 +126,14 @@ class AuthController:
                 session["user_id"] = user_data["id"]
                 session["user_name"] = user_data["full_name"]
                 session["user_email"] = user_data["email"]
-                
+
+                # Fire-and-forget: feeds the My Profile "Engagement" section
+                # (login frequency, streaks). Never blocks or fails login.
+                try:
+                    LearningPathStatsService().record_activity(user_data["id"], ACTIVITY_LOGIN)
+                except Exception:
+                    pass
+
                 return jsonify({
                     "message": message,
                     "user": user_data,
@@ -184,3 +203,114 @@ class AuthController:
     def is_authenticated():
         """Check if user is authenticated."""
         return "user_id" in session and session.get("user_id") is not None
+
+    # -- My Profile: identity / password / photo ----------------------------
+
+    @staticmethod
+    def get_profile():
+        """Get a user's full profile (identity fields, incl. profile_photo_path)."""
+        try:
+            user_id = request.args.get("user_id")
+            if not user_id:
+                return jsonify({"success": False, "error": "user_id is required"}), 400
+
+            user_data = AuthenticationService.get_user_by_id(user_id)
+            if not user_data:
+                return jsonify({"success": False, "error": "User not found"}), 404
+            return jsonify({"success": True, "user": user_data}), 200
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Error retrieving profile: {str(e)}"}), 500
+
+    @staticmethod
+    def update_profile():
+        """Update a user's full_name (My Profile page)."""
+        try:
+            data = request.get_json() or {}
+            user_id = data.get("user_id")
+            full_name = data.get("full_name", "")
+            if not user_id:
+                return jsonify({"success": False, "error": "user_id is required"}), 400
+
+            success, message = AuthenticationService.update_profile(user_id, full_name)
+            if success:
+                # Keep the session cookie's cached name current too, so the
+                # header user-chip reflects the new name for the rest of
+                # this browser session without needing to log back in.
+                if session.get("user_id") == user_id:
+                    session["user_name"] = full_name.strip()
+                return jsonify({"success": True, "message": message}), 200
+            return jsonify({"success": False, "error": message}), 400
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Error updating profile: {str(e)}"}), 500
+
+    @staticmethod
+    def change_password():
+        """Change a user's password (My Profile page)."""
+        try:
+            data = request.get_json() or {}
+            user_id = data.get("user_id")
+            current_password = data.get("current_password", "")
+            new_password = data.get("new_password", "")
+            if not user_id:
+                return jsonify({"success": False, "error": "user_id is required"}), 400
+
+            success, message = AuthenticationService.change_password(user_id, current_password, new_password)
+            if success:
+                return jsonify({"success": True, "message": message}), 200
+            return jsonify({"success": False, "error": message}), 400
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Error changing password: {str(e)}"}), 500
+
+    @staticmethod
+    def upload_profile_photo():
+        """
+        Save an uploaded profile photo to disk and point
+        users.profile_photo_path at it. Multipart form data (not JSON):
+        "user_id" field + "photo" file.
+        """
+        try:
+            user_id = request.form.get("user_id")
+            if not user_id:
+                return jsonify({"success": False, "error": "user_id is required"}), 400
+
+            photo = request.files.get("photo")
+            if not photo or not photo.filename:
+                return jsonify({"success": False, "error": "No photo file provided"}), 400
+
+            ext = os.path.splitext(photo.filename)[1].lower()
+            if ext not in _ALLOWED_PHOTO_EXTENSIONS:
+                return jsonify({"success": False, "error": "Only PNG/JPG images are supported"}), 400
+
+            os.makedirs(_PHOTO_STORAGE_DIR, exist_ok=True)
+
+            # Remove any previous photo for this user first, in case its
+            # extension differs from the new one (e.g. old .png, new .jpg) -
+            # otherwise the stale file would just sit there unused.
+            for existing in glob.glob(os.path.join(_PHOTO_STORAGE_DIR, f"{user_id}.*")):
+                try:
+                    os.remove(existing)
+                except OSError:
+                    pass
+
+            filename = f"{user_id}{ext}"
+            photo.save(os.path.join(_PHOTO_STORAGE_DIR, filename))
+
+            success, message = AuthenticationService.update_profile_photo_path(user_id, filename)
+            if success:
+                return jsonify({"success": True, "message": message, "filename": filename}), 200
+            return jsonify({"success": False, "error": message}), 400
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Error uploading photo: {str(e)}"}), 500
+
+    @staticmethod
+    def get_profile_photo(user_id: str):
+        """Serve a user's uploaded profile photo file directly (used as the
+        src for st.image() on the frontend - see utils/profile_api.py)."""
+        try:
+            user_data = AuthenticationService.get_user_by_id(user_id)
+            filename = user_data.get("profile_photo_path") if user_data else None
+            if not filename:
+                return jsonify({"success": False, "error": "No photo uploaded"}), 404
+            return send_from_directory(_PHOTO_STORAGE_DIR, filename)
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Error retrieving photo: {str(e)}"}), 500

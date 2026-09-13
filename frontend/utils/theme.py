@@ -7,20 +7,25 @@ page renders a consistent look instead of duplicating markup or CSS.
 import streamlit as st
 
 # Brand palette - must stay in sync with the CSS variables in assets/css/main.css
-PRIMARY = "#FF0000"
-ACCENT = "#FFD700"
+PRIMARY = "#1B274C"
+SECONDARY = "#63748C"
+ACCENT = "#D5A23A"
 SUCCESS = "#008000"
-BACKGROUND = "#F8FAFC"
+BACKGROUND = "#F6F8FA"
 CARD = "#FFFFFF"
-TEXT = "#111827"
-BORDER = "#E5E7EB"
+SOFT = "#EAF0F5"
+TEXT = "#182133"
+BORDER = "#DCE3E8"
 
-BRAND_NAME = "GenMentor-SKKNI"
+BRAND_NAME = "GAMASKILL"
+BRAND_TAGLINE = "Gateway for Adaptive Mastery and Advancement of Skills"
 
 # Sidebar nav entries -> maps directly to st.session_state.current_page values
 # consumed by pages/learner_profile.py
 NAV_ITEMS = [
     {"key": "profile", "label": "My Profile", "icon": ":material/account_circle:"},
+    {"key": "data_analytics", "label": "Data Analytics", "icon": ":material/analytics:"},
+    {"key": "engagement", "label": "Engagement", "icon": ":material/trending_up:"},
     {"key": "learning_path", "label": "Learning Path", "icon": ":material/school:"},
     {"key": "test", "label": "Test", "icon": ":material/assignment:"},
 ]
@@ -51,13 +56,18 @@ def avatar_initials(name: str) -> str:
 
 
 def render_brand(auth_style: bool = False):
-    """Render the brand lockup (logo mark + name) used in the sidebar and auth pages."""
+    """Render the brand lockup (logo mark + name + tagline) used in the sidebar and auth pages."""
     wrapper_class = "gm-auth-brand" if auth_style else "gm-brand"
+    name_class = "gm-auth-brand-text" if auth_style else "gm-brand-text"
+    tagline_class = "gm-auth-brand-tagline" if auth_style else "gm-brand-tagline"
     st.markdown(
         f"""
         <div class="{wrapper_class}">
             <div class="gm-brand-mark">🎓</div>
-            <div class="{'gm-auth-brand-text' if auth_style else 'gm-brand-text'}">{BRAND_NAME}</div>
+            <div class="gm-brand-text-wrap">
+                <div class="{name_class}">{BRAND_NAME}</div>
+                <div class="{tagline_class}">{BRAND_TAGLINE}</div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -152,9 +162,17 @@ def _render_submenu_entry(parent_key: str, entry: dict, active: str):
         st.rerun()
 
 
-def render_app_header(title: str, subtitle: str = "", user_name: str = "", user_email: str = "",show_logout: bool = True) -> bool:
+def render_app_header(
+    title: str, subtitle: str = "", user_name: str = "", user_email: str = "",
+    user_photo_url: str = None, show_logout: bool = True,
+) -> bool:
     """
     Render the top header: page title on the left, user chip + logout on the right.
+
+    user_photo_url: the user's uploaded profile photo (see
+    utils/profile_api.py::profile_photo_url), shown instead of the
+    initials circle when given - pass None (the default) to always show
+    initials, e.g. for a user who hasn't uploaded a photo.
 
     Returns:
         True if the Logout button was clicked this run (caller handles the
@@ -177,6 +195,11 @@ def render_app_header(title: str, subtitle: str = "", user_name: str = "", user_
     logout_clicked = False
     with right:
         if user_name:
+            avatar_html = (
+                f"<img class='gm-avatar gm-avatar-img' src='{user_photo_url}'>"
+                if user_photo_url else
+                f"<div class='gm-avatar'>{avatar_initials(user_name)}</div>"
+            )
             chip_col, btn_col = st.columns([3, 1])
             with chip_col:
                 st.markdown(
@@ -186,7 +209,7 @@ def render_app_header(title: str, subtitle: str = "", user_name: str = "", user_
                             <div class="gm-user-name">{user_name}</div>
                             <div class="gm-user-role">{user_email}</div>
                         </div>
-                        <div class="gm-avatar">{avatar_initials(user_name)}</div>
+                        {avatar_html}
                     </div>
                     """,
                     unsafe_allow_html=True,

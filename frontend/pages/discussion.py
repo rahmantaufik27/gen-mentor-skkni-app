@@ -1,15 +1,15 @@
 """
-Learning with Chatbot Assistance Page
+Discussion Page (Learning Path -> Discussion)
 
 Route Protection:
 - Requires authentication (redirects to login if not authenticated)
-- Only accessible to authenticated users
 
-Dedicated full page for the Learning with Chatbot Assistance learning
-method - reachable directly from the Learning Path submenu in the sidebar.
-Renders the standalone AI-tutor chat (components/chatbot.py, backed by a
-pluggable local LLM via /api/chatbot/*). Independent of the DB/Neo4j/user
-model - see components/learning_path.py.
+Dedicated full page for the peer discussion forum - reachable from the
+Learning Path submenu in the sidebar. Renders
+components/discussion.py::render_discussion(), backed by the
+/api/discussions/* endpoints and its own unit_discussion_posts table (see
+services/discussion_service.py) - independent of every other Learning Path
+module.
 """
 
 import streamlit as st
@@ -22,4 +22,4 @@ from components.learning_path import LEARNING_METHODS
 require_authentication()
 
 with st.container(border=True):
-    LEARNING_METHODS["chatbot"]["render"]()
+    LEARNING_METHODS["discussion"]["render"]()

@@ -2,14 +2,21 @@
 Learning Path module.
 
 LEARNING_METHODS is the single source of truth for the Learning Path
-sub-features (Reading Materials, Learning with Chatbot Assistance,
-Practice with Generative Questions, Cue Questions, Key Points, Reflection
-Learning): their sidebar labels/grouping (via get_learning_path_submenu())
-and their render functions. Each method is its own dedicated full page
-(pages/reading_materials.py, pages/chatbot.py, pages/practice.py,
-pages/cue_questions.py, pages/key_points.py, pages/reflection_learning.py)
+sub-features (Reading Materials, Practice with Generative Questions, Cue
+Questions, Key Points, Reflection Learning, Discussion): their sidebar
+labels/grouping (via get_learning_path_submenu()) and their render
+functions. Each method is its own dedicated full page
+(pages/reading_materials.py, pages/practice.py, pages/cue_questions.py,
+pages/key_points.py, pages/reflection_learning.py, pages/discussion.py)
 rather than content switched inside Learning Path - Learning Path itself is
 a separate landing page (pages/learning_path.py).
+
+"Learning with Chatbot Assistance" used to be a menu entry here too - it's
+now the floating Learning Assistant widget instead (see
+components/chatbot_widget.py, rendered on every page from
+pages/learner_profile.py), specifically so it can proactively surface a
+nudge no matter what page the learner is on, not just when they happen to
+open a dedicated chat menu.
 
 Cue Questions and Key Points share "group": "notes", which
 get_learning_path_submenu() nests into one "Notes" entry - rendered by
@@ -31,19 +38,19 @@ routing - no changes needed to the other methods or to the sidebar.
 
 from components.reading_materials import render_reading_materials
 from components.practice import render_practice
-from components.chatbot import render_chatbot
 from components.cue_questions import render_cue_questions
 from components.key_points import render_key_points
 from components.reflection_learning import render_reflection_learning
+from components.discussion import render_discussion
 
 
 LEARNING_METHODS = {
     "reading_materials": {"label": "Reading Materials", "render": render_reading_materials},
-    "chatbot": {"label": "Learning with Chatbot Assistance", "render": render_chatbot},
     "practice": {"label": "Practice with Generative Questions", "render": render_practice},
     "cue_questions": {"label": "Cue Questions", "render": render_cue_questions, "group": "notes"},
     "key_points": {"label": "Key Points", "render": render_key_points, "group": "notes"},
     "reflection_learning": {"label": "Reflection Learning", "render": render_reflection_learning},
+    "discussion": {"label": "Discussion", "render": render_discussion},
 }
 
 # Label shown for the sidebar group that nests entries sharing a "group" key

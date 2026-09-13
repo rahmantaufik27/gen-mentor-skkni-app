@@ -37,5 +37,12 @@ def init_materials_routes(app, controller: MaterialsController):
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 
+    @materials_bp.route("/units", methods=["GET"])
+    def get_all_units():
+        """Get every unit's code + human-readable title"""
+        result = controller.get_all_units()
+        status_code = 200 if result.get("success") else 400
+        return jsonify(result), status_code
+
     # Register blueprint
     app.register_blueprint(materials_bp)

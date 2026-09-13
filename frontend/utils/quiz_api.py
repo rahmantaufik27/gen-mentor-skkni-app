@@ -182,12 +182,19 @@ def get_test_analytics() -> dict:
         return {"success": False, "error": str(e)}
 
 
+@st.cache_data(ttl=300)
 def get_unit_code_map() -> dict:
     """
     Get the truncated -> full unit_code map (static, not user-specific) -
     used to display full unit codes (e.g. "J.620100.005.02") consistently
     everywhere a unit_code is shown, without changing what's stored
     internally (Postgres/session data keep using the truncated code).
+
+    Cached (st.cache_data - shared across every session, correct here
+    since this takes no user-specific argument) for 5 minutes - found
+    during a 200-concurrent-user scalability audit re-fetching this on
+    every single page load that shows a unit code, for data that's
+    effectively static.
 
     Returns:
         Dictionary with a "unit_codes" map ({truncated: full})

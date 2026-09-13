@@ -45,6 +45,11 @@ class MaterialsService:
         """Return every material in the Neo4j knowledge graph, unfiltered."""
         return self.neo4j_service.get_all_materials()
 
+    def get_all_units(self) -> List[Dict]:
+        """Every unit's code + human-readable title (static, not
+        user-specific) - e.g. for the Discussion page's unit picker."""
+        return self.neo4j_service.get_all_units()
+
     def get_recommended_materials(self, user_id: str) -> Dict:
         """
         Materials for units that are currently effectively Remedial - per

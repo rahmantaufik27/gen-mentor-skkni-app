@@ -16,7 +16,7 @@ from utils.theme import inject_theme
 from components.admin_shell import require_admin_authentication, render_admin_sidebar, render_admin_header
 from components.admin_users import render_admin_users
 
-st.set_page_config(page_title="Admin Dashboard - Gen-Mentor", page_icon="🛠️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Admin Dashboard - GAMASKILL", page_icon="🛠️", layout="wide", initial_sidebar_state="expanded")
 st.set_option("client.showSidebarNavigation", False)
 
 inject_theme()

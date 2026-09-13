@@ -4,9 +4,13 @@ Learner Profile Page - Main Hub with Navigation
 This is the main application hub after login.
 It provides navigation to:
 - Test page (formerly "Quiz")
-- Learning Path page (Reading Materials / Chatbot / Practice submenu)
+- Learning Path page (Reading Materials / Practice / Notes / Reflection /
+  Discussion submenu)
 - Account/Profile information
 - Logout functionality
+
+Also renders the floating Learning Assistant chatbot widget (see
+components/chatbot_widget.py) on every page - it's not a menu entry.
 
 Test and Practice eligibility is gated (see utils/gating.py): the Test
 (the Placement Test) is taken exactly once, ever - eligible only before
@@ -21,22 +25,26 @@ injection. This code is exec'd by main.py, so don't duplicate those calls.
 """
 
 import streamlit as st
-from utils.state import save_persistent_state
 from utils.auth_guard import get_current_user
 from utils.theme import render_sidebar_nav, render_app_header
 from utils.gating import get_learning_gating
-from components.mastery_dashboard import render_mastery_dashboard
+from utils.profile_api import profile_photo_url
+from components.mastery_dashboard import render_data_analytics, render_engagement
+from components.user_profile import render_profile_landing
 from components.learning_path import get_learning_path_submenu
+from components.chatbot_widget import render_chatbot_widget
 
 PAGE_TITLES = {
-    "profile": ("My Profile", "Your account and mastery-level overview"),
+    "profile": ("My Profile", "Your overview, plus your account, password, and photo"),
+    "data_analytics": ("Data Analytics", "Your Test and Practice performance"),
+    "engagement": ("Engagement", "How consistently you're learning, and how you compare to peers"),
     "learning_path": ("Learning Path", "Curated resources based on your quiz results"),
     "reading_materials": ("Reading Materials", "Materials recommended based on your mastery gaps"),
-    "chatbot": ("Learning with Chatbot Assistance", "Chat with an AI tutor for personalized help"),
     "practice": ("Practice with Generative Questions", "Adaptive practice questions for your weakest units"),
     "cue_questions": ("Cue Questions", "Saved question notes plus your own free-form question notes"),
     "key_points": ("Key Points", "Saved material and chat notes plus your own free-form notes"),
     "reflection_learning": ("Reflection Learning", "Turn today's learning into a concrete action plan"),
+    "discussion": ("Discussion", "Ask and help each other out, unit by unit"),
     "test": ("Test", "Test your knowledge across all six units"),
 }
 # Admin is a separate module (pages/admin_login.py + pages/admin_dashboard.py)
@@ -77,12 +85,16 @@ elif st.session_state.current_page == "test" and (gating.get("test_stage") == "p
 else:
     title, subtitle = PAGE_TITLES.get(st.session_state.current_page, PAGE_TITLES["profile"])
 
-if render_app_header(title, subtitle, user_name=current_user.get("user_name") or "", user_email=current_user.get("user_email") or ""):
+user_photo_url = profile_photo_url(current_user["userId"]) if current_user.get("user_photo") else None
+if render_app_header(
+    title, subtitle, user_name=current_user.get("user_name") or "", user_email=current_user.get("user_email") or "",
+    user_photo_url=user_photo_url,
+):
     st.session_state.logged_in = False
     st.session_state.userId = None
     st.session_state.user_name = None
     st.session_state.user_email = None
-    save_persistent_state()
+    st.session_state.user_photo = None
     st.success("✅ Logged out successfully!")
     st.rerun()
 
@@ -99,6 +111,21 @@ if st.session_state.current_page == "test":
             exec(f.read())
     except Exception as e:
         st.error(f"Failed to load Test page: {str(e)}")
+
+elif st.session_state.current_page == "data_analytics":
+    # ====================================================================
+    # DATA ANALYTICS PAGE (Pre-Test / Practice / Post-Test - split out of
+    # My Profile, see components/mastery_dashboard.py::render_data_analytics)
+    # ====================================================================
+    render_data_analytics()
+
+elif st.session_state.current_page == "engagement":
+    # ====================================================================
+    # ENGAGEMENT PAGE (streaks, peer benchmark, badges - split out of
+    # Data Analytics' old 4th tab, see
+    # components/mastery_dashboard.py::render_engagement)
+    # ====================================================================
+    render_engagement()
 
 elif st.session_state.current_page == "learning_path":
     # ====================================================================
@@ -120,16 +147,6 @@ elif st.session_state.current_page == "reading_materials":
             exec(f.read())
     except Exception as e:
         st.error(f"Failed to load Reading Materials page: {str(e)}")
-
-elif st.session_state.current_page == "chatbot":
-    # ====================================================================
-    # LEARNING WITH CHATBOT ASSISTANCE PAGE
-    # ====================================================================
-    try:
-        with open("pages/chatbot.py", "r", encoding="utf-8") as f:
-            exec(f.read())
-    except Exception as e:
-        st.error(f"Failed to load Chatbot page: {str(e)}")
 
 elif st.session_state.current_page == "practice":
     # ====================================================================
@@ -171,21 +188,28 @@ elif st.session_state.current_page == "reflection_learning":
     except Exception as e:
         st.error(f"Failed to load Reflection Learning page: {str(e)}")
 
+elif st.session_state.current_page == "discussion":
+    # ====================================================================
+    # DISCUSSION PAGE (Learning Path -> Discussion)
+    # ====================================================================
+    try:
+        with open("pages/discussion.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Discussion page: {str(e)}")
+
 else:  # profile (default)
     # ====================================================================
-    # LEARNER PROFILE PAGE
+    # MY PROFILE PAGE - the post-login landing page: an Overview tab
+    # (greeting, nudge banner, quick links) plus an Update Profile tab
+    # (identity, photo, password) - see components/user_profile.py
     # ====================================================================
-    # # Display user information section
-    # with st.container(border=True):
-    #     st.markdown("#### Account Information")
-    #     col1, col2 = st.columns(2)
-    #     with col1:
-    #         st.write(f"**Name:** {current_user['user_name']}")
-    #     with col2:
-    #         st.write(f"**Email:** {current_user['user_email']}")
+    render_profile_landing()
 
-    # st.markdown("")
-
-    # Display Test Analytics + Practice Analytics dashboard (each section
-    # owns its own bordered container/header - see components/mastery_dashboard.py)
-    render_mastery_dashboard()
+# ============================================================================
+# LEARNING ASSISTANT FLOATING WIDGET - rendered last (position:fixed via CSS
+# lifts it out of normal page flow regardless of DOM order) and OUTSIDE the
+# page branching above, so it's visible on every page, not just one menu
+# entry - see components/chatbot_widget.py for why.
+# ============================================================================
+render_chatbot_widget()

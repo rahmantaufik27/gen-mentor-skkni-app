@@ -1,7 +1,25 @@
 """
-Session-state utilities: default initialization plus a JSON-file-backed
-persistence layer so a whitelisted subset of st.session_state survives
-Streamlit reruns/reloads.
+Session-state utilities: default initialization for the in-memory
+st.session_state values the app relies on.
+
+REMOVED (200-concurrent-user scalability/correctness audit): this module
+used to also have a JSON-file-backed persistence layer
+(save_persistent_state()/load_persistent_state(), backed by a single
+shared user_data/data_store.json) meant to survive a hard browser refresh.
+It was a live bug, not just a scaling concern - main.py called
+initialize_session_state() (which called load_persistent_state()
+unconditionally) on EVERY rerun, for EVERY session, and that one file was
+shared by the whole server process rather than being per-session. With
+more than one person using the app at the same time, one user's next
+click could silently overwrite their own userId/user_name/user_email/
+logged_in with whatever another user's session had last written to that
+file - a real identity/session mix-up, not a hypothetical one, and it
+didn't need 200 concurrent users to trigger, just two. Removed outright
+rather than "fixed" (e.g. by keying the file per-session) because
+Streamlit's own st.session_state already covers what this was trying to
+do (survive reruns within a session) without a shared file; surviving a
+hard refresh would need a real per-user mechanism (a signed cookie,
+Flask's own session) if it's wanted back, not a global file.
 
 NOTE: goal/learning-path related helpers below (add_new_goal, change_selected_goal_id,
 etc.) belong to a separate, currently-unused goal-planning subsystem - unrelated
@@ -11,43 +29,6 @@ to the active auth/quiz/mastery flow.
 import streamlit as st
 from collections import defaultdict
 import config
-import json
-from pathlib import Path
-
-# Whitelist of session_state keys that get written to/read from user_data/data_store.json.
-# Anything not listed here is in-memory only and resets on every Streamlit rerun.
-PERSIST_KEYS = [
-    "backend_endpoint",
-    "available_models",
-    "if_complete_onboarding",
-    "sample_number",
-    "logged_in",
-    "show_chatbot",
-    "llm_type",
-    "tutor_messages",
-    "goals",
-    "learner_information",
-    "learner_information_pdf",
-    "learner_information_text",
-    "learner_occupation",
-    "if_refining_learning_goal",
-    "if_rescheduling_learning_path",
-    "if_updating_learner_profile",
-    "selected_goal_id",
-    "selected_session_id",
-    "selected_point_id",
-    "to_add_goal",
-    "learned_skills_history",
-    "userId",
-    "user_name",
-    "user_email",
-    "document_caches",
-    "session_learning_times",
-]
-
-
-def _get_data_store_path():
-    return Path(__file__).resolve().parents[1] / "user_data" / "data_store.json"
 
 
 def _normalize_goal_structure(goal: dict) -> dict:
@@ -68,48 +49,6 @@ def _normalize_goal_structure(goal: dict) -> dict:
         if field not in goal:
             goal[field] = default_value
     return goal
-
-
-def load_persistent_state():
-    """Load persisted keys from a local JSON file into st.session_state.
-
-    Only keys listed in PERSIST_KEYS will be restored.
-    """
-    path = _get_data_store_path()
-    if not path.exists():
-        return False
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return False
-    for k, v in data.items():
-        if k in PERSIST_KEYS:
-            # Normalize goals structure to handle schema changes
-            if k == "goals" and isinstance(v, list):
-                v = [_normalize_goal_structure(goal) for goal in v]
-            # Normalize to_add_goal
-            if k == "to_add_goal" and isinstance(v, dict):
-                v = _normalize_goal_structure(v)
-            st.session_state[k] = v
-    return True
-
-
-def save_persistent_state():
-    """Save whitelisted st.session_state keys to a local JSON file."""
-    path = _get_data_store_path()
-    data = {}
-    for k in PERSIST_KEYS:
-        if k in st.session_state:
-            try:
-                data[k] = st.session_state[k]
-            except Exception:
-                pass
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        return True
-    except Exception:
-        return False
 
 
 def initialize_session_state():
@@ -182,19 +121,6 @@ def initialize_session_state():
     if 'learned_skills_history' not in st.session_state:
         st.session_state['learned_skills_history'] = {}
 
-    try:
-        load_persistent_state()
-    except Exception:
-        pass
-    
-    # Normalize goals structure after loading from persistent state
-    if "goals" in st.session_state and isinstance(st.session_state["goals"], list):
-        st.session_state["goals"] = [_normalize_goal_structure(goal) for goal in st.session_state["goals"]]
-    
-    # Normalize to_add_goal structure after loading from persistent state
-    if "to_add_goal" in st.session_state and isinstance(st.session_state["to_add_goal"], dict):
-        st.session_state["to_add_goal"] = _normalize_goal_structure(st.session_state["to_add_goal"])
-
 def get_new_goal_uid():
     return max(goal["id"] for goal in st.session_state.goals) + 1 if st.session_state.goals else 0
 
@@ -234,11 +160,6 @@ def change_selected_goal_id(new_goal_id):
     st.session_state["is_learner_profile_ready"] = True if st.session_state["learner_profile"] else False
     st.session_state["is_learning_path_ready"] = True if st.session_state["learning_path"] else False
     st.session_state["is_skill_gap_ready"] = True if st.session_state["skill_gaps"] else False
-    # persist change
-    try:
-        save_persistent_state()
-    except Exception:
-        pass
 
 def get_existing_goal_id_list():
     return [goal["id"] for goal in st.session_state["goals"]]
@@ -262,11 +183,6 @@ def add_new_goal(learning_goal="", skill_gaps=[], learner_profile={}, learning_p
     st.session_state.goals.append(goal_info)
     goal_idx = index_goal_by_id(goal_uid)
     reset_to_add_goal()
-    # persist after adding a goal
-    try:
-        save_persistent_state()
-    except Exception:
-        pass
     return goal_idx
 
 def get_current_knowledge_point_uid():

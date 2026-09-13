@@ -14,7 +14,7 @@ from utils.admin_api import admin_login
 if "admin_login_error" not in st.session_state:
     st.session_state.admin_login_error = None
 
-st.set_page_config(page_title="Admin Login - Gen-Mentor", page_icon="🛠️", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Admin Login - GAMASKILL", page_icon="🛠️", layout="centered", initial_sidebar_state="collapsed")
 
 # ============================================================================
 # HIDE STREAMLIT'S AUTOMATIC PAGE SIDEBAR (auth pages don't use the app shell)

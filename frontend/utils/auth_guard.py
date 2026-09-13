@@ -45,9 +45,11 @@ def is_authenticated() -> bool:
 def get_current_user() -> dict:
     """
     Get current authenticated user information.
-    
+
     Returns:
-        dict: User data with keys: userId, user_name, user_email
+        dict: User data with keys: userId, user_name, user_email, user_photo
+              (user_photo is the uploaded photo's filename, or None if the
+              user hasn't uploaded one - see components/user_profile.py)
               Returns empty dict if not authenticated
     """
     if is_authenticated():
@@ -55,6 +57,7 @@ def get_current_user() -> dict:
             "userId": st.session_state.get("userId"),
             "user_name": st.session_state.get("user_name"),
             "user_email": st.session_state.get("user_email"),
+            "user_photo": st.session_state.get("user_photo"),
         }
     return {}
 
@@ -70,11 +73,7 @@ def logout_user():
     st.session_state.userId = None
     st.session_state.user_name = None
     st.session_state.user_email = None
-    
-    # Save state
-    from utils.state import save_persistent_state
-    save_persistent_state()
-    
+
     st.success("✅ Logged out successfully!")
     st.rerun()
 

@@ -1,5 +1,12 @@
 """
-My Profile dashboard: Test Analytics + Practice Analytics.
+Data Analytics + Engagement pages - the performance/behavioral dashboards
+that used to live under My Profile before it became a pure account-identity
+page (see components/user_profile.py). Two public entry points:
+
+  - render_data_analytics(): the proactive nudge banner + Test Analytics
+    (Pre-Test/Practice/Post-Test tabs).
+  - render_engagement(): Behavioral and Engagement Tracking, standalone
+    (badges, peer benchmark, streaks, recent activity).
 
 Test Analytics renders unconditionally from whatever the backend's
 /api/quiz/mastery-summary endpoint returns - including the "never taken a
@@ -21,14 +28,17 @@ import plotly.express as px
 import streamlit as st
 
 from utils.quiz_api import get_mastery_summary, get_unit_code_map, get_test_analytics
-from utils.practice_api import get_practice_analytics
-from utils.theme import SUCCESS, PRIMARY, TEXT, BORDER
+from utils.practice_api import get_practice_analytics, get_learning_path_stats
+from utils.theme import SUCCESS, ACCENT, PRIMARY, TEXT, BORDER
 
-# Charts use the brand palette's success/primary colors so status coloring
-# stays consistent with the rest of the UI (see utils/theme.py)
+# Charts use the brand palette's success/accent colors so status coloring
+# stays consistent with the rest of the UI (see utils/theme.py). Remedial
+# uses ACCENT rather than PRIMARY - PRIMARY is the navy brand/nav color now,
+# not an attention color, so it no longer reads as "needs work" next to
+# Mastered's green the way the old red PRIMARY did.
 STATUS_COLORS = {
     "Mastered": SUCCESS,
-    "Remedial": PRIMARY,
+    "Remedial": ACCENT,
 }
 
 CHART_LAYOUT_DEFAULTS = dict(
@@ -68,17 +78,86 @@ def _get_code_map() -> dict:
     return result.get("unit_codes", {}) if result.get("success") else {}
 
 
-def render_mastery_dashboard():
-    """Render the My Profile dashboard: Test Analytics + Practice Analytics."""
+def render_data_analytics():
+    """Render the Data Analytics page: Test Analytics (Pre-Test/Practice/
+    Post-Test). The nudge banner that used to open this page now lives on
+    My Profile's Overview tab instead - see render_nudge_banner below and
+    components/user_profile.py."""
     code_map = _get_code_map()
 
     with st.container(border=True):
         _render_test_analytics(code_map)
 
-    # st.markdown("")
 
-    # with st.container(border=True):
-    #     _render_practice_analytics(code_map)
+def render_engagement():
+    """Render the Engagement page, standalone (it used to be a 4th tab
+    inside Data Analytics - now its own menu entry, see
+    pages/learner_profile.py)."""
+    code_map = _get_code_map()
+    with st.container(border=True):
+        st.markdown("#### 📈 Engagement")
+        _render_engagement_analytics(code_map)
+
+
+def render_nudge_banner():
+    """
+    One context-aware banner - the first thing a user sees on login, on My
+    Profile's Overview tab (see components/user_profile.py; My Profile is
+    the post-login landing page, pages/learner_profile.py). Picks the
+    single most relevant message instead of stacking several:
+
+      1. Never done anything substantive yet -> point them at a first step.
+      2. Away for a few days -> welcome back + resume prompt.
+      3. Still has Remedial units -> nudge toward Practice.
+      4. Otherwise (recently active, nothing Remedial) -> quiet positive
+         reinforcement of their streak, or nothing at all with no streak.
+
+    Deliberately measures "last substantive activity" from Materials/
+    Chatbot/Practice/Test timestamps, NOT last_active_date/login - logging
+    in to view this very page always counts as "active today" (see
+    services/learning_path_stats_service.py::ACTIVITY_LOGIN), so a
+    login-based signal would never actually detect a gap.
+    """
+    stats = get_learning_path_stats()
+    if not stats.get("success"):
+        return  # nudges are a nice-to-have; never block the dashboard on this
+
+    substantive_dates = [
+        stats.get("latest_material_activity"),
+        stats.get("latest_chatbot_interaction"),
+        stats.get("latest_practice_interaction"),
+        stats.get("latest_test_interaction"),
+    ]
+    substantive_dates = [d for d in substantive_dates if d]
+
+    remedial_units = stats.get("remedial_units", 0)
+
+    if not substantive_dates:
+        st.info(
+            "👋 **Welcome!** Get started with a **Placement Test**, or browse **Reading Materials** "
+            "for a quick first look."
+        )
+        return
+
+    days_since = (datetime.now() - max(datetime.fromisoformat(d) for d in substantive_dates)).days
+
+    if days_since >= 3:
+        st.warning(
+            f"⏰ It's been **{days_since} days** since your last study session. "
+            + (
+                f"You still have **{remedial_units} unit(s)** to master - jump back into Practice or Reading Materials."
+                if remedial_units else "Come back and keep your momentum going!"
+            )
+        )
+    elif remedial_units > 0:
+        st.info(
+            f"🎯 You have **{remedial_units} unit(s)** still Remedial. "
+            "Keep practicing to move them to Mastered."
+        )
+    else:
+        streak = stats.get("current_streak_days", 0)
+        if streak >= 2:
+            st.success(f"🔥 **{streak}-day streak!** All units Mastered and still going - great consistency.")
 
 
 def _render_test_analytics(code_map: dict):
@@ -89,8 +168,6 @@ def _render_test_analytics(code_map: dict):
     (_render_stage_analytics) is identical for both, so the two stages stay
     directly comparable and the existing chart/table structure is preserved.
     """
-    st.markdown("#### 📊 Data Analytics")
-
     analytics = get_test_analytics()
     if not analytics.get("success"):
         st.error(f"Failed to load Test Analytics: {analytics.get('error', 'Unknown error')}")
@@ -116,6 +193,190 @@ def _render_test_analytics(code_map: dict):
             st.info(
                 "You haven't taken your Post-Test yet. It unlocks once you've cleared "
                 "every Practice recommendation (all units at their target Knowledge Level)."
+            )
+
+
+def _render_engagement_analytics(code_map: dict):
+    """
+    Behavioral and Engagement Tracking: how consistently the user shows up
+    (streaks, active days, recent activity, which learning methods they
+    actually use) - deliberately separate from the Test/Practice tabs above,
+    which are about performance (scores, mastery), not behavior.
+
+    Backed by get_learning_path_stats() (see
+    backend/services/learning_path_stats_service.py::_engagement_stats),
+    which unifies the generic user_activity log (materials viewed, chatbot
+    prompts, logins) with Practice/Test completion timestamps - no separate
+    endpoint needed here.
+    """
+    stats = get_learning_path_stats()
+    if not stats.get("success"):
+        st.error(f"Failed to load Engagement stats: {stats.get('error', 'Unknown error')}")
+        return
+
+    st.caption("How consistently you're showing up to learn - separate from how well you're scoring.")
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(
+            "Current Streak", f"{stats.get('current_streak_days', 0)}d",
+            help="Consecutive days with at least one learning activity, up to today"
+        )
+    with col2:
+        st.metric(
+            "Longest Streak", f"{stats.get('longest_streak_days', 0)}d",
+            help="Your longest-ever run of consecutive active days"
+        )
+    with col3:
+        st.metric(
+            "Active Days (30d)", stats.get("active_days_last_30", 0),
+            help="Days with at least one activity in the last 30 days"
+        )
+    with col4:
+        st.metric(
+            "Last Active", _format_date(stats.get("last_active_date")),
+            help="Most recent day you did anything countable (materials, chatbot, practice, test, or login)"
+        )
+
+    st.markdown("")
+    st.markdown("###### Recent Activity (last 30 days)")
+    daily = stats.get("daily_activity", [])
+    if not daily:
+        st.info("No activity recorded yet - browse a material, chat with the tutor, or start a Practice/Test session.")
+    else:
+        df = pd.DataFrame(daily)
+        df["date"] = pd.to_datetime(df["date"])
+        # Zero-fill every day in the window so gaps in activity show as
+        # gaps in the chart, not as a shorter x-axis.
+        full_range = pd.DataFrame({"date": pd.date_range(end=pd.Timestamp.today().normalize(), periods=30)})
+        merged = full_range.merge(df, on="date", how="left").fillna(0)
+        merged["count"] = merged["count"].astype(int)
+
+        bar_fig = px.bar(merged, x="date", y="count")
+        bar_fig.update_traces(marker_color=PRIMARY)
+        bar_fig.update_layout(
+            yaxis=dict(title="Activities", gridcolor=BORDER, dtick=1),
+            xaxis=dict(title=""),
+            margin=dict(t=10, b=10, l=10, r=10),
+            **CHART_LAYOUT_DEFAULTS,
+        )
+        st.plotly_chart(bar_fig, use_container_width=True, key="engagement_daily_bar")
+
+    st.markdown("")
+    st.markdown("###### Activity Breakdown")
+    breakdown = {
+        "📄 Materials Viewed": stats.get("materials_viewed", 0),
+        "💬 Chatbot Prompts": stats.get("chatbot_attempts", 0),
+        "📝 Practice Sessions": stats.get("practice_sessions", 0),
+        "📊 Test Attempts": stats.get("test_attempts", 0),
+        "🔑 Logins": stats.get("logins", 0),
+    }
+    for col, (label, value) in zip(st.columns(len(breakdown)), breakdown.items()):
+        with col:
+            st.metric(label, value)
+
+    st.markdown("")
+    st.markdown("###### Badges")
+    _render_badges(stats)
+
+    st.markdown("")
+    st.markdown("###### Peer Benchmark")
+    _render_peer_benchmark(stats, code_map)
+
+
+def _render_peer_benchmark(stats: dict, code_map: dict):
+    """
+    Anonymous peer comparison - the "Collaborative/Peer-Based
+    Personalization" feature without any social surface: every learner's
+    mastery folds into aggregate counts/percentages only, nobody's
+    individual data is ever shown to anybody else (see
+    LearningPathStatsService._peer_benchmark_stats).
+    """
+    total_learners = stats.get("peer_total_learners", 0)
+    if total_learners < 2:
+        st.info("Peer benchmarking unlocks once more learners have Test data to compare against.")
+        return
+
+    percentile = stats.get("peer_mastered_percentile")
+    avg_mastered = stats.get("peer_avg_mastered_units", 0)
+    my_mastered = stats.get("mastered_units", 0)
+
+    st.markdown(
+        f"You've mastered **{my_mastered}** unit(s) - at or ahead of **{percentile}%** of "
+        f"**{total_learners}** learners who've taken a Test (peer average: **{avg_mastered}**)."
+    )
+
+    peer_pct = stats.get("peer_unit_mastery_pct") or {}
+    if peer_pct:
+        df = pd.DataFrame([
+            {"Unit": code_map.get(code, code), "pct": pct}
+            for code, pct in sorted(peer_pct.items())
+        ])
+        bar_fig = px.bar(df, x="Unit", y="pct")
+        bar_fig.update_traces(marker_color=ACCENT)
+        bar_fig.update_layout(
+            yaxis=dict(title="% of peers Mastered", range=[0, 100], gridcolor=BORDER),
+            xaxis=dict(title=""),
+            margin=dict(t=10, b=10, l=10, r=10),
+            **CHART_LAYOUT_DEFAULTS,
+        )
+        st.plotly_chart(bar_fig, use_container_width=True, key="peer_benchmark_bar")
+
+
+def _badge_definitions(stats: dict) -> list:
+    """
+    Badge thresholds, each checked against a single monotonic counter
+    already in the stats dict (longest_streak_days/mastered_units/*_viewed/
+    *_attempts/active_days_total never decrease) - so "earned" is a pure,
+    stable function of the current totals. No separate "badges earned"
+    table needed: nothing to persist, nothing that can get out of sync.
+    """
+    mastered = stats.get("mastered_units", 0)
+    total_units = stats.get("total_units", 0)
+    longest_streak = stats.get("longest_streak_days", 0)
+
+    return [
+        {"icon": "🔥", "label": "3-Day Streak", "desc": "Reach a 3-day learning streak",
+         "earned": longest_streak >= 3},
+        {"icon": "🔥", "label": "7-Day Streak", "desc": "Reach a 7-day learning streak",
+         "earned": longest_streak >= 7},
+        {"icon": "🔥", "label": "30-Day Streak", "desc": "Reach a 30-day learning streak",
+         "earned": longest_streak >= 30},
+        {"icon": "🎯", "label": "First Mastery", "desc": "Master your first unit",
+         "earned": mastered >= 1},
+        {"icon": "🏆", "label": "All Units Mastered", "desc": "Master every unit",
+         "earned": total_units > 0 and mastered >= total_units},
+        {"icon": "📚", "label": "Curious Mind", "desc": "View 10 learning materials",
+         "earned": stats.get("materials_viewed", 0) >= 10},
+        {"icon": "💬", "label": "Chatty Learner", "desc": "Send 10 chatbot messages",
+         "earned": stats.get("chatbot_attempts", 0) >= 10},
+        {"icon": "📝", "label": "Practice Pro", "desc": "Complete 10 Practice sessions",
+         "earned": stats.get("practice_sessions", 0) >= 10},
+        {"icon": "🗓️", "label": "Committed Learner", "desc": "Be active on 10 different days",
+         "earned": stats.get("active_days_total", 0) >= 10},
+    ]
+
+
+def _render_badges(stats: dict):
+    """Grid of badge cards - earned ones in full color with an accent
+    border, locked ones dimmed - see the .gm-badge-tile CSS in main.css."""
+    badges = _badge_definitions(stats)
+    earned_count = sum(1 for b in badges if b["earned"])
+    st.caption(f"{earned_count} of {len(badges)} earned")
+
+    cols = st.columns(3)
+    for i, badge in enumerate(badges):
+        state_class = "gm-badge-tile-earned" if badge["earned"] else "gm-badge-tile-locked"
+        with cols[i % 3]:
+            st.markdown(
+                f"""
+                <div class="gm-badge-tile {state_class}">
+                    <div class="gm-badge-tile-icon">{badge['icon']}</div>
+                    <div class="gm-badge-tile-label">{badge['label']}</div>
+                    <div class="gm-badge-tile-desc">{badge['desc']}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
 
 

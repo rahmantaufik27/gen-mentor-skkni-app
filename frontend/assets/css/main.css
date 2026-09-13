@@ -5,19 +5,32 @@
    ============================================================================ */
 
 :root {
-    --primary: #FF0000;
-    --primary-hover: #E00000;
-    --accent: #FFD700;
+    --primary: #1B274C;
+    --primary-hover: #172141;
+    --accent: #D5A23A;
     --success: #008000;
-    --background: #F8FAFC;
+    --background: #F6F8FA;
     --card: #FFFFFF;
-    --text: #111827;
-    --text-muted: #6B7280;
-    --border: #E5E7EB;
+    --soft: #EAF0F5;
+    --text: #182133;
+    --text-muted: #63748C;
+    --border: #DCE3E8;
     --radius: 14px;
     --radius-sm: 8px;
     --shadow: 0 1px 3px rgba(17, 24, 39, 0.06), 0 4px 12px rgba(17, 24, 39, 0.05);
     --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, Helvetica, Arial, sans-serif;
+
+    /* Calm "edtech" accents for content-type color coding (material icons/
+       chips) - kept apart from --primary/--success/--accent, which stay
+       reserved for actions, progress, and brand. */
+    --edu-blue: #2563EB;
+    --edu-blue-bg: rgba(37, 99, 235, 0.10);
+    --edu-teal: #0D9488;
+    --edu-teal-bg: rgba(13, 148, 136, 0.10);
+    --edu-violet: #7C3AED;
+    --edu-violet-bg: rgba(124, 58, 237, 0.10);
+    --edu-amber: #D97706;
+    --edu-amber-bg: rgba(217, 119, 6, 0.10);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -30,6 +43,16 @@ html, body, .stApp, [class*="css"] {
 
 .stApp {
     background-color: var(--background);
+}
+
+/* Safety net, not a layout mechanism: if any element ever ends up wider
+   than the viewport (a stray fixed px width, a long unbroken token in a
+   chat/discussion post, etc.), this stops the whole PAGE from scrolling
+   sideways on a phone. Scrollable widgets (st.dataframe, code blocks) keep
+   their own internal horizontal scroll regardless - this only affects the
+   outer page. */
+html, body {
+    overflow-x: hidden;
 }
 
 div[data-testid="stMainBlockContainer"] {
@@ -95,11 +118,25 @@ section[data-testid="stSidebar"] div[data-testid="stMainBlockContainer"] {
     flex-shrink: 0;
 }
 
+.gm-brand-text-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
 .gm-brand-text {
     font-size: 18px;
     font-weight: 700;
     color: var(--text);
     line-height: 1.1;
+}
+
+.gm-brand-tagline {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    line-height: 1.3;
+    margin-top: 2px;
 }
 
 .gm-nav-section-label {
@@ -127,10 +164,13 @@ section[data-testid="stSidebar"] .stButton button[kind="secondary"] {
 }
 
 section[data-testid="stSidebar"] .stButton button[kind="secondary"]:hover {
-    background-color: var(--background) !important;
+    background-color: var(--soft) !important;
     border-color: var(--border) !important;
 }
 
+/* The active/selected menu item - background is the navy brand color, so
+   its text is set to white here for contrast (everything else in the
+   sidebar keeps the default dark text on white). */
 section[data-testid="stSidebar"] .stButton button[kind="primary"] {
     background-color: var(--primary) !important;
     border-color: var(--primary) !important;
@@ -146,9 +186,22 @@ section[data-testid="stSidebar"] div[class*="st-key-submenu_"] {
 }
 
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] .stButton button {
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
     padding: 0.4rem 0.55rem !important;
+}
+
+/* Streamlit wraps a button's label in its own markdown <p> (so bold/icons/
+   etc. work in labels) - same as the color-on-primary-buttons issue
+   elsewhere in this file, a rule that directly matches that <p> would win
+   over whatever font-size the button merely inherits. Target it directly
+   so every submenu item (buttons AND the "Notes" group header below)
+   actually renders at the same 0.85rem, not just the button element. */
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] .stButton button p,
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] .stButton button span,
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] .stButton button div {
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
 }
 
 /* Dropdown group inside a submenu (e.g. Learning Path's "Notes" expander
@@ -172,13 +225,25 @@ section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary {
     padding: 0.4rem 0.55rem !important;
     font-size: 0.85rem !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     color: var(--text) !important;
     border: none !important;
 }
 
+/* Same "text is in a nested <p>, not the element we styled" situation as
+   the submenu buttons above (and the primary-button color fix elsewhere
+   in this file) - without this, "Notes" renders at Streamlit's default
+   markdown font-size instead of matching its 0.85rem siblings. */
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary p,
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary span,
+section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary div {
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+}
+
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary:hover {
-    background-color: var(--background) !important;
+    background-color: var(--soft) !important;
 }
 
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] svg {
@@ -195,14 +260,12 @@ section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="
 /* Header bar (title + user chip)                                        */
 /* ---------------------------------------------------------------------- */
 
-.gm-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 4px 0 18px 0;
-    margin-bottom: 18px;
-    border-bottom: 1px solid var(--border);
-}
+/* No .gm-header wrapper class here on purpose - render_app_header()
+   (utils/theme.py) builds the title/user-chip row from real st.columns(),
+   not a hand-rolled flex div. Streamlit measures each column's actual
+   rendered width via ResizeObserver and stacks it to full-width rows below
+   its own breakpoint - including the nested chip/logout columns inside the
+   right-hand column - so this reflows on a phone without any CSS here. */
 
 .gm-header-title {
     font-size: 26px;
@@ -238,19 +301,30 @@ section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="
     flex-shrink: 0;
 }
 
+/* An uploaded photo used as an avatar (header, Discussion posts) - same
+   circle as the initials version above, but an <img> needs object-fit to
+   crop non-square photos into that circle instead of squashing them. */
+.gm-avatar-img {
+    object-fit: cover;
+    background: var(--soft);
+}
+
 .gm-user-meta {
     line-height: 1.15;
+    min-width: 0; /* let a long name/email actually wrap instead of forcing the flex row wider than its column */
 }
 
 .gm-user-name {
     font-weight: 600;
     font-size: 14px;
     color: var(--text);
+    word-break: break-word;
 }
 
 .gm-user-role {
     font-size: 12px;
     color: var(--text-muted);
+    word-break: break-word;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -283,6 +357,25 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
     border-color: var(--primary) !important;
     color: #fff !important;
     box-shadow: none !important;
+}
+
+/* The button's label isn't a plain text node - Streamlit wraps it in a
+   markdown <p> (so bold/icons/etc. work), and the base typography rule
+   (`p, span, label, li { color: var(--text) }` above) sets that <p>'s own
+   color directly, which wins over the button's inherited white regardless
+   of !important on the button itself (a rule that directly matches an
+   element always beats one the element merely inherits from its parent).
+   With --text and --primary both dark navy now, that made primary-button
+   labels (e.g. the active sidebar item) render navy-on-navy, effectively
+   invisible. Target the label elements directly so they actually turn
+   white. */
+.stButton button[kind="primary"] p,
+.stButton button[kind="primary"] span,
+.stButton button[kind="primary"] div,
+.stFormSubmitButton button[kind="primary"] p,
+.stFormSubmitButton button[kind="primary"] span,
+.stFormSubmitButton button[kind="primary"] div {
+    color: #fff !important;
 }
 
 .stButton button[kind="primary"]:hover, .stFormSubmitButton button[kind="primary"]:hover {
@@ -378,8 +471,131 @@ div[data-testid="stDataFrame"] {
 }
 
 .gm-badge-danger {
-    background-color: rgba(255, 0, 0, 0.08);
-    color: var(--primary);
+    /* Explicit red, independent of --primary (now the navy brand color, not
+       a warning color) - kept for any future genuine error/danger badge. */
+    background-color: rgba(220, 38, 38, 0.08);
+    color: #DC2626;
+}
+
+.gm-badge-neutral {
+    background-color: var(--soft);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+
+.gm-badge-amber {
+    background-color: var(--edu-amber-bg);
+    color: var(--edu-amber);
+}
+
+.gm-badge-blue {
+    background-color: var(--edu-blue-bg);
+    color: var(--edu-blue);
+}
+
+.gm-badge-teal {
+    background-color: var(--edu-teal-bg);
+    color: var(--edu-teal);
+}
+
+.gm-badge-violet {
+    background-color: var(--edu-violet-bg);
+    color: var(--edu-violet);
+}
+
+.gm-badge-read {
+    /* Same green as gm-badge-success (Mastered) - "read" and "mastered" are
+       both progress signals, so they share one consistent color language. */
+    background-color: rgba(0, 128, 0, 0.10);
+    color: var(--success);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Material cards (Reading Materials grid)                                */
+/* ---------------------------------------------------------------------- */
+
+/* Visible border + generous inner padding on every material card -
+   overrides the tight, borderless default from the generic
+   st.container(border=True) rule above (later in the cascade, same
+   specificity, so this wins for cards in this grid only) so the icon,
+   title, and buttons no longer crowd the card's edge. */
+div[class*="st-key-gm_material_card_"] {
+    border: 1px solid var(--border) !important;
+    padding: 18px 20px !important;
+    height: 100%;
+    transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+div[class*="st-key-gm_material_card_"]:hover {
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+}
+
+/* Cards the user has already opened this session - tinted with the same
+   green used for "Mastered" (progress = green, consistently). Kept
+   distinct from the border rule above by matching the "_read_" part of
+   the key so unread cards keep the neutral border/background. */
+div[class*="st-key-gm_material_card_read_"] {
+    background-color: rgba(0, 128, 0, 0.06) !important;
+    border-color: var(--success) !important;
+}
+
+.gm-material-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--soft);
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    margin: 6px 0 10px 0;
+}
+
+.gm-material-icon.gm-accent-blue {
+    background: var(--edu-blue-bg);
+    color: var(--edu-blue);
+}
+
+.gm-material-icon.gm-accent-teal {
+    background: var(--edu-teal-bg);
+    color: var(--edu-teal);
+}
+
+.gm-material-icon.gm-accent-violet {
+    background: var(--edu-violet-bg);
+    color: var(--edu-violet);
+}
+
+.gm-material-title {
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.35;
+    color: var(--text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 2.7em;
+    margin-bottom: 8px;
+}
+
+.gm-material-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+/* Compact Open Material / Save-to-Notes / Discuss buttons - smaller
+   padding and text than the app's default buttons, since these three now
+   sit side by side in a third of the card each rather than stacked
+   full-width. */
+div[class*="st-key-gm_material_card_"] .stButton button {
+    padding: 0.3rem 0.6rem !important;
+    font-size: 12.5px !important;
+    min-height: 0 !important;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -401,10 +617,174 @@ div[data-testid="stDataFrame"] {
     border-radius: 14px;
 }
 
+/* Center the name+tagline as a block, instead of the column's default
+   stretch (which would left-align the text within the full-width block). */
+.gm-auth-brand .gm-brand-text-wrap {
+    align-items: center;
+}
+
 .gm-auth-brand-text {
     font-size: 20px;
     font-weight: 700;
     color: var(--text);
+}
+
+.gm-auth-brand-tagline {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 260px;
+    line-height: 1.35;
+    margin-top: 3px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Discussion (Learning Path -> Discussion)                                */
+/* ---------------------------------------------------------------------- */
+
+/* The reply a post's author marked as the best answer - tinted the same
+   success green used for "Mastered"/"Read" elsewhere, so "best answer"
+   reads as a positive/resolved signal consistently across the app. */
+div[class*="st-key-discussion_reply_card_best_"] {
+    background-color: rgba(0, 128, 0, 0.06) !important;
+    border: 1px solid var(--success) !important;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Achievement badges (My Profile -> Engagement tab)                       */
+/* ---------------------------------------------------------------------- */
+
+.gm-badge-tile {
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    padding: 12px;
+    margin-bottom: 10px;
+    text-align: center;
+    transition: transform 0.15s ease;
+}
+
+.gm-badge-tile-icon {
+    font-size: 22px;
+    line-height: 1;
+    margin-bottom: 6px;
+}
+
+.gm-badge-tile-label {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.gm-badge-tile-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+/* Earned - full color, accent border, small lift on hover. */
+.gm-badge-tile-earned {
+    background: var(--edu-amber-bg, rgba(213, 162, 58, 0.10));
+    border-color: var(--accent);
+}
+
+.gm-badge-tile-earned:hover {
+    transform: translateY(-2px);
+}
+
+/* Locked - dimmed so earned ones visually pop, icon desaturated via opacity
+   (cheap cross-browser grayscale substitute for emoji, which ignore
+   filter: grayscale in some renderers). */
+.gm-badge-tile-locked {
+    background: var(--soft);
+    opacity: 0.5;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Learning Assistant floating widget (components/chatbot_widget.py)       */
+/* ---------------------------------------------------------------------- */
+
+/* Pinned to the corner regardless of scroll position or which page is
+   showing - position:fixed lifts it out of the normal Streamlit block
+   flow, and it's rendered last in pages/learner_profile.py so it's on top. */
+div[class*="st-key-chatbot_bubble_wrap_"] {
+    position: fixed;
+    bottom: 20px;
+    right: 24px;
+    z-index: 9999;
+}
+
+div[class*="st-key-chatbot_bubble_wrap_"] .stButton button {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary) !important;
+    border-color: var(--primary) !important;
+    color: #fff !important;
+    font-size: 22px;
+    line-height: 1;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow);
+}
+
+div[class*="st-key-chatbot_bubble_wrap_"] .stButton button:hover {
+    background: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+}
+
+/* Unread state (a proactive nudge landed while the panel was closed) -
+   pulses so it's noticeable from any page without being a literal
+   flashing/strobing blink. */
+div[class*="st-key-chatbot_bubble_wrap_unread"] .stButton button {
+    animation: gm-chat-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes gm-chat-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+    50% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+}
+
+div[class*="st-key-chatbot_panel"] {
+    position: fixed;
+    bottom: 90px;
+    right: 24px;
+    width: 350px;
+    max-width: calc(100vw - 32px);
+    max-height: 65vh;
+    overflow-y: auto;
+    background: var(--card) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: var(--shadow);
+    padding: 14px !important;
+    z-index: 9998;
+}
+
+/* The panel is its own fixed-size box, not something that shrinks with the
+   viewport the way normal page content does - so its own row layouts
+   (title + minimize, message-input + send, Clear) must never let
+   Streamlit's own container-width column stacking kick in, or "Message"
+   and "Send" would end up on separate lines inside an already-small box.
+   Force every st.columns() row in here to stay horizontal, and size
+   everything down to fit comfortably at 350px (or narrower on a phone,
+   see the max-width above). */
+div[class*="st-key-chatbot_panel"] div[data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+    gap: 0.4rem !important;
+}
+
+div[class*="st-key-chatbot_panel"] .stButton button,
+div[class*="st-key-chatbot_panel"] .stFormSubmitButton button {
+    padding: 0.35rem 0.5rem !important;
+    font-size: 13px !important;
+    min-height: 0 !important;
+}
+
+div[class*="st-key-chatbot_panel"] .stTextInput input {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 13.5px !important;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -412,16 +792,49 @@ div[data-testid="stDataFrame"] {
 /* ---------------------------------------------------------------------- */
 
 @media (max-width: 768px) {
-    .gm-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
     .gm-header-title {
         font-size: 21px;
     }
     div[data-testid="stMainBlockContainer"] {
         padding: 0.75rem !important;
         padding-right: 0.75rem !important;
+    }
+
+    /* Long HTML we hand-write ourselves (discussion post author lines,
+       badge tiles, material cards) uses fixed-px avatar/icon sizes next to
+       flexible text - shrink those touch points a bit and let the text
+       side wrap instead of pushing the row wider than the phone screen. */
+    .gm-material-icon {
+        width: 34px;
+        height: 34px;
+        font-size: 16px;
+    }
+    .gm-badge-tile-icon {
+        font-size: 18px;
+    }
+
+    /* st.tabs()'s own tab strip doesn't reflow like st.columns() does -
+       with 3-4 tabs (Pre-Test/Practice/Post-Test, Overview/Update Profile)
+       it can outgrow a phone's width. Let it scroll horizontally within
+       its own strip rather than overlapping or clipping tab labels. */
+    div[data-testid="stTabs"] div[role="tablist"] {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    /* Learning Assistant widget - hug the corner tighter and let the panel
+       use nearly the full width on a phone (max-width already caps it,
+       this just tightens the offsets so it doesn't float awkwardly far
+       from the edge) and more of the viewport height, since there's much
+       less of it to spare. */
+    div[class*="st-key-chatbot_bubble_wrap_"] {
+        right: 12px;
+        bottom: 12px;
+    }
+    div[class*="st-key-chatbot_panel"] {
+        right: 8px;
+        bottom: 76px;
+        max-width: calc(100vw - 16px);
+        max-height: 75vh;
     }
 }

@@ -22,6 +22,7 @@ from services.learning_path_stats_service import LearningPathStatsService
 from services.notes_service import NotesService
 from services.reflection_service import ReflectionService
 from services.free_notes_service import FreeNotesService
+from services.discussion_service import DiscussionService
 from controllers.quiz_controller import QuizController
 from controllers.materials_controller import MaterialsController
 from controllers.practice_controller import PracticeController
@@ -30,6 +31,7 @@ from controllers.learning_path_stats_controller import LearningPathStatsControll
 from controllers.notes_controller import NotesController
 from controllers.reflection_controller import ReflectionController
 from controllers.free_notes_controller import FreeNotesController
+from controllers.discussion_controller import DiscussionController
 from routes.quiz_routes import init_quiz_routes
 from routes.auth_routes import init_auth_routes
 from routes.materials_routes import init_materials_routes
@@ -40,6 +42,7 @@ from routes.learning_path_stats_routes import init_learning_path_stats_routes
 from routes.notes_routes import init_notes_routes
 from routes.reflection_routes import init_reflection_routes
 from routes.free_notes_routes import init_free_notes_routes
+from routes.discussion_routes import init_discussion_routes
 # Table creation is disabled at startup: the users/quiz schema already exists
 # in the live database and is managed manually, not via these migration scripts.
 # from migrations.001_create_users_table import create_users_table
@@ -107,6 +110,10 @@ def create_app(config=None):
     # Points -> Free Notes) - standalone CRUD over its own user_free_notes
     # table (see services/free_notes_service.py).
     free_notes_service = FreeNotesService()
+    # Peer-to-peer Q&A forum, one thread per unit (Learning Path ->
+    # Discussion) - standalone CRUD over its own unit_discussion_posts
+    # table (see services/discussion_service.py).
+    discussion_service = DiscussionService()
 
     # Initialize controllers
     controller = QuizController(quiz_service)
@@ -117,6 +124,7 @@ def create_app(config=None):
     notes_controller = NotesController(notes_service)
     reflection_controller = ReflectionController(reflection_service)
     free_notes_controller = FreeNotesController(free_notes_service)
+    discussion_controller = DiscussionController(discussion_service)
 
     # Initialize routes
     init_quiz_routes(app, controller)
@@ -128,6 +136,7 @@ def create_app(config=None):
     init_notes_routes(app, notes_controller)
     init_reflection_routes(app, reflection_controller)
     init_free_notes_routes(app, free_notes_controller)
+    init_discussion_routes(app, discussion_controller)
 
     # Initialize authentication
     print("Initializing authentication system...")
@@ -200,6 +209,11 @@ def create_app(config=None):
                     "update": "PUT /api/free-notes",
                     "delete": "DELETE /api/free-notes"
                 },
+                "discussions": {
+                    "list": "GET /api/discussions?unit_code=",
+                    "create": "POST /api/discussions",
+                    "delete": "DELETE /api/discussions"
+                },
                 "admin": {
                     "login": "POST /api/admin/login",
                     "logout": "POST /api/admin/logout",
@@ -235,4 +249,24 @@ if __name__ == "__main__":
     print("  - Login: POST http://127.0.0.1:5000/api/auth/login")
     print("  - Logout: POST http://127.0.0.1:5000/api/auth/logout")
     print("="*50 + "\n")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+
+    # Flask's own app.run() dev server is single-threaded by default - it
+    # handles one request at a time, which doesn't hold up under real
+    # concurrent load (found during a 200-concurrent-user scalability
+    # audit). waitress is the production-grade replacement used here
+    # instead of gunicorn because gunicorn needs fork(), which Windows
+    # doesn't have. threads=16 lets that many requests run at once, kept
+    # under config/database.py's connection pool cap (_POOL_MAXCONN=20) so
+    # a full burst of requests never queues waiting on a free pooled
+    # connection.
+    #
+    # Set FLASK_DEBUG=1 to fall back to Flask's dev server instead (auto-
+    # reload + interactive in-browser traceback debugger) while actively
+    # developing a change - waitress doesn't have either of those, but is
+    # what actually gets used day-to-day / at real load.
+    if os.environ.get("FLASK_DEBUG") == "1":
+        app.run(host="127.0.0.1", port=5000, debug=True)
+    else:
+        from waitress import serve
+        print("Serving with waitress (production WSGI server, threads=16)\n")
+        serve(app, host="127.0.0.1", port=5000, threads=16)

@@ -215,5 +215,5 @@ def record_material_view(unit_code: str = None) -> dict:
 
 
 def record_chatbot_attempt() -> dict:
-    """Count that the user sent a chatbot prompt (see components/chatbot.py)."""
+    """Count that the user sent a chatbot prompt (see components/chatbot_widget.py)."""
     return record_activity(ACTIVITY_CHATBOT_PROMPT)

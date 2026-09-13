@@ -46,7 +46,8 @@ def _format_date(iso_date: str) -> str:
         return iso_date
 
 
-def render_save_button(source_type, source_id, snapshot_text, title=None, source_ref=None, saved_ids=None, key=None):
+def render_save_button(source_type, source_id, snapshot_text, title=None, source_ref=None, saved_ids=None, key=None,
+                        use_container_width=True, icon_only=False):
     """
     Reusable Save-to-Notes / Remove-from-Notes toggle for one piece of content.
 
@@ -61,6 +62,12 @@ def render_save_button(source_type, source_id, snapshot_text, title=None, source
                      from the caller's one-time get_saved_source_ids() so we don't
                      re-query per button); falls back to a lookup if omitted
         key:         unique Streamlit widget key
+        use_container_width: stretch to fill its container (default) or shrink
+                     to fit its label - pass False for a compact button (e.g.
+                     side-by-side with another button in a card footer).
+        icon_only:   show just 🔖/✅ instead of the "Save to Notes"/"Remove
+                     from Notes" text - for tight spaces like the floating
+                     chatbot widget (see components/chatbot_widget.py).
     """
     if not source_id or not snapshot_text:
         return
@@ -68,9 +75,12 @@ def render_save_button(source_type, source_id, snapshot_text, title=None, source
         saved_ids = get_saved_source_ids(source_type)
 
     is_saved = source_id in saved_ids
-    label = "Remove from Notes" if is_saved else "Save to Notes"
+    if icon_only:
+        label = "✅" if is_saved else "🔖"
+    else:
+        label = "Remove from Notes" if is_saved else "Save to Notes"
 
-    if st.button(label, key=key, use_container_width=True):
+    if st.button(label, key=key, use_container_width=use_container_width, help="Remove from Notes" if is_saved else "Save to Notes"):
         if is_saved:
             result = remove_note(source_type=source_type, source_id=source_id)
             if result.get("success"):

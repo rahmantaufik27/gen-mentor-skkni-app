@@ -6,7 +6,7 @@ backend. Configurable entirely via environment variables so switching host
 or model needs no code change:
 
     OLLAMA_HOST    default http://localhost:11434
-    OLLAMA_MODEL   default qwen2.5:1.5b
+    OLLAMA_MODEL   default qwen3:4b-instruct
     OLLAMA_TIMEOUT default 120 (seconds, per chat request)
 """
 
@@ -29,7 +29,7 @@ class OllamaProvider(LLMProvider):
         timeout: Optional[float] = None,
     ):
         self.host = (host or os.environ.get("OLLAMA_HOST", "http://localhost:11434")).rstrip("/")
-        self.model = model or os.environ.get("OLLAMA_MODEL", "qwen2.5:1.5b")
+        self.model = model or os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct")
         try:
             self.timeout = timeout if timeout is not None else float(os.environ.get("OLLAMA_TIMEOUT", "120"))
         except ValueError:

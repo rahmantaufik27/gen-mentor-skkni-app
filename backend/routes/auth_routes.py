@@ -33,6 +33,33 @@ def init_auth_routes(app):
     def get_current_user():
         """Get current authenticated user endpoint."""
         return AuthController.get_current_user()
-    
+
+    # -- My Profile: identity / password / photo -----------------------
+
+    @auth_bp.route("/profile", methods=["GET"])
+    def get_profile():
+        """Get a user's full profile endpoint."""
+        return AuthController.get_profile()
+
+    @auth_bp.route("/profile", methods=["PUT"])
+    def update_profile():
+        """Update a user's identity fields endpoint."""
+        return AuthController.update_profile()
+
+    @auth_bp.route("/change-password", methods=["POST"])
+    def change_password():
+        """Change a user's password endpoint."""
+        return AuthController.change_password()
+
+    @auth_bp.route("/profile-photo", methods=["POST"])
+    def upload_profile_photo():
+        """Upload a user's profile photo endpoint."""
+        return AuthController.upload_profile_photo()
+
+    @auth_bp.route("/profile-photo/<user_id>", methods=["GET"])
+    def get_profile_photo(user_id):
+        """Serve a user's profile photo file endpoint."""
+        return AuthController.get_profile_photo(user_id)
+
     # Register blueprint with app
     app.register_blueprint(auth_bp)

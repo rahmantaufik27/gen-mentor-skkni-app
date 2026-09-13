@@ -3,14 +3,13 @@
 import streamlit as st
 import httpx
 import config
-from utils.state import load_persistent_state, save_persistent_state
 from utils.theme import inject_theme, render_brand
 
 # Initialize session state
 if "login_error" not in st.session_state:
     st.session_state.login_error = None
 
-st.set_page_config(page_title="GenM - Login", page_icon="🔐", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="GAMASKILL - Login", page_icon="🔐", layout="centered", initial_sidebar_state="collapsed")
 
 # ============================================================================
 # HIDE STREAMLIT'S AUTOMATIC PAGE SIDEBAR (auth pages don't use the app shell)
@@ -69,7 +68,7 @@ render_brand(auth_style=True)
 with st.container(border=True):
     # Page title and description
     st.markdown("<p style='margin-top: 0; text-align: center; font-size: 36px; font-weight: bold;'>Welcome Back</p>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: var(--text-muted);'>Sign in to your GenM-SKKNI account</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: var(--text-muted);'>Sign in to your GAMASKILL account</p>", unsafe_allow_html=True)
 
     # Display success message if the user just registered
     if st.session_state.get("registration_just_completed"):
@@ -129,9 +128,7 @@ with st.container(border=True):
                     st.session_state.userId = user_data["id"]
                     st.session_state.user_name = user_data["full_name"]
                     st.session_state.user_email = user_data["email"]
-
-                    # Save state
-                    save_persistent_state()
+                    st.session_state.user_photo = user_data.get("profile_photo_path")
 
                     st.success(message)
                     # Redirect to main app

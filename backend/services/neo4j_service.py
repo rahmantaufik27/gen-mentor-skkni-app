@@ -198,6 +198,16 @@ class Neo4jService:
     # Recommendations (read-only, consumed by MaterialsService/QuizService)
     # ------------------------------------------------------------------
 
+    def get_all_units(self) -> List[Dict]:
+        """Every Unit node's code + title (static, not user-specific) - used
+        wherever the frontend needs a human-readable label for a unit_code
+        instead of the bare code (e.g. the Discussion page's unit picker)."""
+        records = self._run_query(
+            "MATCH (unit:Unit) RETURN unit.kode AS unit_code, unit.title AS title ORDER BY unit.kode",
+            purpose="list_units",
+        )
+        return [{"unit_code": r.get("unit_code"), "title": r.get("title")} for r in records]
+
     def get_all_materials(self) -> List[Dict]:
         """All reading materials (Concept nodes) in the graph, for the 'All Materials' browse view."""
         records = self._run_query(

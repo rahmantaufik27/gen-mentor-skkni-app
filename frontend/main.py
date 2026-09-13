@@ -10,7 +10,7 @@ own config.
 """
 
 import streamlit as st
-from utils.state import initialize_session_state, save_persistent_state, load_persistent_state
+from utils.state import initialize_session_state
 from utils.theme import inject_theme
 
 # ============================================================================
@@ -22,7 +22,7 @@ initialize_session_state()
 # PAGE CONFIG - Called only once, with all settings
 # ============================================================================
 st.set_page_config(
-    page_title="GenMentor-SKKNI",
+    page_title="GAMASKILL",
     page_icon=":books:",
     layout="wide",
     initial_sidebar_state="expanded"  # Real left nav sidebar (custom content, not Streamlit's auto page list)
@@ -45,13 +45,6 @@ if is_logged_in:
     # (learner_profile.py handles all navigation)
     # ========================================================================
     
-    # Auto-save state
-    st.session_state.setdefault("_autosave_enabled", True)
-    try:
-        save_persistent_state()
-    except Exception:
-        pass
-
     # Load the learner profile page as main hub
     exec(open("pages/learner_profile.py", encoding="utf-8").read())
 

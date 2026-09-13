@@ -1,1 +1,1 @@
-from .mastery_dashboard import render_mastery_dashboard
+from .mastery_dashboard import render_data_analytics, render_engagement

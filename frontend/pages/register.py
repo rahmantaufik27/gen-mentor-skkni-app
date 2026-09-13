@@ -3,7 +3,6 @@
 import streamlit as st
 import httpx
 import config
-from utils.state import load_persistent_state, save_persistent_state
 from utils.theme import inject_theme, render_brand
 
 # Initialize session state
@@ -13,7 +12,7 @@ if "registration_success" not in st.session_state:
 if "registration_error" not in st.session_state:
     st.session_state.registration_error = None
 
-st.set_page_config(page_title="Register - Gen-Mentor", page_icon="📝", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Register - GAMASKILL", page_icon="📝", layout="centered", initial_sidebar_state="collapsed")
 
 # ============================================================================
 # HIDE STREAMLIT'S AUTOMATIC PAGE SIDEBAR (auth pages don't use the app shell)
@@ -72,7 +71,7 @@ render_brand(auth_style=True)
 with st.container(border=True):
     # Page title and description
     st.markdown("<h2 style='text-align: center; margin-top:0;'>Create Your Account</h2>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: var(--text-muted);'>Join Gen-Mentor and start your learning journey</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: var(--text-muted);'>Join GAMASKILL and start your learning journey</p>", unsafe_allow_html=True)
 
     # Display success message if registration was successful
     if st.session_state.registration_success:

@@ -30,3 +30,11 @@ class MaterialsController:
             return {"success": True, **result}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def get_all_units(self) -> dict:
+        """Get every unit's code + human-readable title."""
+        try:
+            units = self.materials_service.get_all_units()
+            return {"success": True, "units": units}
+        except Exception as e:
+            return {"success": False, "error": str(e)}

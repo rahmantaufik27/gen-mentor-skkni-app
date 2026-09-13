@@ -8,7 +8,6 @@ Route Protection:
 """
 
 import streamlit as st
-from utils.state import save_persistent_state
 from utils.auth_guard import require_authentication
 from utils.practice_api import get_practice_analytics, get_learning_path_stats, record_activity, record_material_view, record_chatbot_attempt
 

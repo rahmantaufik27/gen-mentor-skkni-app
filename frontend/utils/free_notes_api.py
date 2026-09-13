@@ -36,10 +36,15 @@ def list_free_notes(category: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
-def create_free_note(category: str, content_html: str) -> dict:
-    """Create a new free note in the given category."""
+def create_free_note(category: str, content_html: str, user_id: str = None) -> dict:
+    """Create a new free note in the given category.
+
+    user_id normally comes from the session, but callers running off the
+    main script thread (the free-notes autosave debounce timer, which can't
+    touch st.session_state) must pass it explicitly instead.
+    """
     try:
-        user_id = st.session_state.get("userId")
+        user_id = user_id or st.session_state.get("userId")
         if not user_id:
             return {"success": False, "error": "User not authenticated"}
         payload = {"user_id": user_id, "category": category, "content_html": content_html}
@@ -54,10 +59,15 @@ def create_free_note(category: str, content_html: str) -> dict:
         return {"success": False, "error": str(e)}
 
 
-def update_free_note(note_id: str, content_html: str) -> dict:
-    """Update an existing free note's content."""
+def update_free_note(note_id: str, content_html: str, user_id: str = None) -> dict:
+    """Update an existing free note's content.
+
+    user_id normally comes from the session, but callers running off the
+    main script thread (the free-notes autosave debounce timer, which can't
+    touch st.session_state) must pass it explicitly instead.
+    """
     try:
-        user_id = st.session_state.get("userId")
+        user_id = user_id or st.session_state.get("userId")
         if not user_id:
             return {"success": False, "error": "User not authenticated"}
         payload = {"user_id": user_id, "note_id": note_id, "content_html": content_html}
