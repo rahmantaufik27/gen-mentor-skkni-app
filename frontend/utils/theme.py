@@ -24,6 +24,7 @@ BRAND_TAGLINE = "Gateway for Adaptive Mastery and Advancement of Skills"
 # consumed by pages/learner_profile.py
 NAV_ITEMS = [
     {"key": "profile", "label": "My Profile", "icon": ":material/account_circle:"},
+    {"key": "onboarding", "label": "Onboarding", "icon": ":material/rocket_launch:"},
     {"key": "data_analytics", "label": "Data Analytics", "icon": ":material/analytics:"},
     {"key": "engagement", "label": "Engagement", "icon": ":material/trending_up:"},
     {"key": "learning_path", "label": "Learning Path", "icon": ":material/school:"},

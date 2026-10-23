@@ -36,6 +36,7 @@ from components.chatbot_widget import render_chatbot_widget
 
 PAGE_TITLES = {
     "profile": ("My Profile", "Your overview, plus your account, password, and photo"),
+    "onboarding": ("Onboarding", "Revisit the welcome tour and your SKKNI career path"),
     "data_analytics": ("Data Analytics", "Your Test and Practice performance"),
     "engagement": ("Engagement", "How consistently you're learning, and how you compare to peers"),
     "learning_path": ("Learning Path", "Curated resources based on your quiz results"),
@@ -111,6 +112,18 @@ if st.session_state.current_page == "test":
             exec(f.read())
     except Exception as e:
         st.error(f"Failed to load Test page: {str(e)}")
+
+elif st.session_state.current_page == "onboarding":
+    # ====================================================================
+    # ONBOARDING (re-entry from the sidebar) - same wizard main.py shows a
+    # first-time login (see pages/onboarding.py). Its own finish/skip paths
+    # already set current_page and st.rerun() when done, same as a first run.
+    # ====================================================================
+    try:
+        with open("pages/onboarding.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load Onboarding page: {str(e)}")
 
 elif st.session_state.current_page == "data_analytics":
     # ====================================================================

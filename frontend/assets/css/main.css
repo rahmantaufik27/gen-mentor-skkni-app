@@ -788,6 +788,348 @@ div[class*="st-key-chatbot_panel"] .stTextInput input {
 }
 
 /* ---------------------------------------------------------------------- */
+/* Onboarding wizard (pages/onboarding.py)                                 */
+/* ---------------------------------------------------------------------- */
+
+.gm-onb-wrap {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.gm-onb-dots {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 18px;
+}
+
+.gm-onb-dots i {
+    width: 22px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--border);
+    display: block;
+}
+
+.gm-onb-dots i.on {
+    background: var(--primary);
+}
+
+.gm-onb-pill-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.gm-onb-pill {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--primary);
+    background: var(--soft);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+/* Step 2 "Choose Your Path" - career ladder preview, staged as a rising
+   staircase (each level a notch higher than the last) rather than a flat
+   row, so climbing levels is felt, not just labeled. */
+.gm-onb-ladder-wrap {
+    background: linear-gradient(112deg, #FCF8EF 0%, #F5F8F5 45%, #EEF7F1 100%);
+    border: 1px solid #ECE3CC;
+    border-radius: 13px;
+    padding: 10px 10px 8px;
+    margin: 6px 0 4px;
+}
+
+.gm-onb-ladder {
+    display: flex;
+    align-items: flex-end;
+    overflow-x: auto;
+    padding: 92px 6px 6px;
+    gap: 20px;
+}
+
+.gm-onb-lchip {
+    flex: none;
+    width: 122px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.gm-onb-lv-badge {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+}
+
+.gm-onb-role-pill {
+    width: 100%;
+    border-radius: 10px;
+    padding: 12px 8px 11px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    color: #fff;
+    min-height: 68px;
+    justify-content: center;
+    box-shadow: 0 3px 8px rgba(24, 33, 51, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.gm-onb-picon {
+    font-size: 17px;
+    line-height: 1;
+}
+
+.gm-onb-rname {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.25;
+}
+
+.gm-onb-tagline {
+    font-size: 10.5px;
+    color: var(--text-muted);
+    margin-top: 7px;
+    text-align: center;
+}
+
+.gm-onb-tagline.now {
+    color: var(--success);
+    font-weight: 700;
+}
+
+.gm-onb-lchip.dim .gm-onb-role-pill {
+    opacity: 0.6;
+}
+
+.gm-onb-lchip.goal .gm-onb-role-pill {
+    box-shadow: 0 0 0 3px var(--accent), 0 4px 10px rgba(184, 132, 42, 0.3);
+}
+
+/* Points from the CENTER of one rung toward the top of the NEXT rung - the
+   ladder only rises ~7px per step, so a shallow near-horizontal arrow
+   actually matches the staircase; the earlier steep diagonal didn't. */
+.gm-onb-arrow-r {
+    position: absolute;
+    right: -17px;
+    bottom: 44px;
+    color: #B7A8A4;
+    font-size: 15px;
+    transform: rotate(-12deg);
+}
+
+.gm-onb-crown {
+    position: absolute;
+    top: -16px;
+    font-size: 15px;
+}
+
+/* Step 3 "Your Journey" - unit list (vertical, a rail of connected steps -
+   each of the 6 real SKKNI units reads as its own row) + how-a-unit-works
+   loop below it. */
+.gm-onb-road {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-bottom: 24px;
+    padding-left: 2px;
+}
+
+.gm-onb-road::before {
+    content: "";
+    position: absolute;
+    left: 23px;
+    top: 24px;
+    bottom: 24px;
+    width: 2px;
+    background: var(--border);
+    z-index: 0;
+}
+
+.gm-onb-node {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.gm-onb-circ {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    font-weight: 700;
+    background: var(--soft);
+    color: var(--text-muted);
+    border: 2px solid var(--border);
+    flex: none;
+}
+
+.gm-onb-node.active .gm-onb-circ {
+    background: var(--primary);
+    color: var(--accent);
+    border-color: var(--primary);
+}
+
+.gm-onb-node .gm-onb-lbl {
+    font-size: 16px;
+    color: var(--text-muted);
+    text-align: left;
+    line-height: 1.4;
+    flex: 1;
+}
+
+.gm-onb-node.active .gm-onb-lbl {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.gm-onb-node .gm-onb-lock {
+    font-size: 14px;
+    color: var(--text-muted);
+    flex: none;
+}
+
+.gm-onb-loop {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    margin-bottom: 8px;
+}
+
+.gm-onb-lstep {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 76px;
+}
+
+.gm-onb-lstep .gm-onb-ic {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.gm-onb-lstep .gm-onb-lbl {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.25;
+}
+
+.gm-onb-arr {
+    color: var(--text-muted);
+    font-size: 13px;
+    flex: none;
+}
+
+.gm-onb-legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.gm-onb-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.gm-onb-legend i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* Step 5 "Ready" recap + route chip */
+.gm-onb-check {
+    font-size: 14px;
+    color: var(--text);
+    display: flex;
+    gap: 8px;
+    margin-bottom: 9px;
+    align-items: flex-start;
+}
+
+.gm-onb-check .gm-onb-tick {
+    color: var(--success);
+    flex: none;
+}
+
+.gm-onb-route {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    border-top: 1px dashed var(--border);
+    padding-top: 16px;
+    margin: 14px 0 4px;
+}
+
+.gm-onb-route .gm-onb-rnode {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.2;
+}
+
+.gm-onb-route .gm-onb-ic2 {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.gm-onb-route .gm-onb-rnode.goal .gm-onb-ic2 {
+    background: var(--edu-amber-bg, rgba(213, 162, 58, 0.10));
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
+.gm-onb-route small {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 9.5px;
+}
+
+.gm-onb-route .gm-onb-rarr {
+    color: var(--text-muted);
+    font-size: 15px;
+}
+
+/* ---------------------------------------------------------------------- */
 /* Responsive tweaks                                                       */
 /* ---------------------------------------------------------------------- */
 

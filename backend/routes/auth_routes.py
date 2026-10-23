@@ -51,6 +51,11 @@ def init_auth_routes(app):
         """Change a user's password endpoint."""
         return AuthController.change_password()
 
+    @auth_bp.route("/onboarding/complete", methods=["POST"])
+    def complete_onboarding():
+        """Mark the onboarding wizard complete endpoint."""
+        return AuthController.complete_onboarding()
+
     @auth_bp.route("/profile-photo", methods=["POST"])
     def upload_profile_photo():
         """Upload a user's profile photo endpoint."""

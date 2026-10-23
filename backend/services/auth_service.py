@@ -175,7 +175,11 @@ class AuthenticationService:
             cursor = connection.cursor()
             
             cursor.execute(
-                "SELECT id, full_name, email, password_hash, profile_photo_path FROM users WHERE email = %s",
+                """
+                SELECT id, full_name, email, password_hash, profile_photo_path,
+                       onboarding_completed, target_role, target_level
+                FROM users WHERE email = %s
+                """,
                 (email,)
             )
 
@@ -185,7 +189,8 @@ class AuthenticationService:
             if not result:
                 return False, "Invalid email or password", None
 
-            user_id, full_name, db_email, password_hash, profile_photo_path = result
+            (user_id, full_name, db_email, password_hash, profile_photo_path,
+             onboarding_completed, target_role, target_level) = result
 
             # Verify password
             if not AuthenticationService.verify_password(password, password_hash):
@@ -196,6 +201,9 @@ class AuthenticationService:
                 "full_name": full_name,
                 "email": db_email,
                 "profile_photo_path": profile_photo_path,
+                "onboarding_completed": bool(onboarding_completed),
+                "target_role": target_role,
+                "target_level": target_level,
             }
             
             return True, "Login successful", user_data
@@ -223,7 +231,11 @@ class AuthenticationService:
             cursor = connection.cursor()
 
             cursor.execute(
-                "SELECT id, full_name, email, created_at, profile_photo_path FROM users WHERE id = %s",
+                """
+                SELECT id, full_name, email, created_at, profile_photo_path,
+                       onboarding_completed, target_role, target_level
+                FROM users WHERE id = %s
+                """,
                 (user_id,)
             )
 
@@ -233,13 +245,17 @@ class AuthenticationService:
             if not result:
                 return None
 
-            user_id, full_name, email, created_at, profile_photo_path = result
+            (user_id, full_name, email, created_at, profile_photo_path,
+             onboarding_completed, target_role, target_level) = result
             return {
                 "id": str(user_id),
                 "full_name": full_name,
                 "email": email,
                 "created_at": created_at.isoformat() if created_at else None,
                 "profile_photo_path": profile_photo_path,
+                "onboarding_completed": bool(onboarding_completed),
+                "target_role": target_role,
+                "target_level": target_level,
             }
 
         except Error as e:
@@ -374,6 +390,52 @@ class AuthenticationService:
             if connection:
                 connection.rollback()
             return False, f"Failed to update profile photo: {str(e)}"
+        finally:
+            if connection:
+                connection.close()
+
+    @staticmethod
+    def complete_onboarding(
+        user_id: str, target_role: Optional[str] = None, target_level: Optional[int] = None
+    ) -> Tuple[bool, str]:
+        """
+        Mark a user's onboarding wizard (frontend/pages/onboarding.py) as
+        complete, optionally recording the SKKNI target role/level they
+        picked in its "Choose Your Path" step. Called on every exit path out
+        of onboarding (finishing it, or skipping it) - target_role/level are
+        left None for a skip.
+
+        Args:
+            user_id: User UUID
+            target_role: Chosen target role name, or None if skipped
+            target_level: Chosen target level (2-9), or None if skipped
+
+        Returns:
+            Tuple of (success: bool, message: str)
+        """
+        connection = None
+        try:
+            connection = get_db_connection()
+            cursor = connection.cursor()
+            cursor.execute(
+                """
+                UPDATE users
+                SET onboarding_completed = TRUE, target_role = %s, target_level = %s, updated_at = now()
+                WHERE id = %s
+                """,
+                (target_role, target_level, user_id)
+            )
+            updated = cursor.rowcount > 0
+            connection.commit()
+            cursor.close()
+
+            if not updated:
+                return False, "User not found"
+            return True, "Onboarding completed"
+        except Error as e:
+            if connection:
+                connection.rollback()
+            return False, f"Failed to complete onboarding: {str(e)}"
         finally:
             if connection:
                 connection.close()

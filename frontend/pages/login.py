@@ -129,6 +129,7 @@ with st.container(border=True):
                     st.session_state.user_name = user_data["full_name"]
                     st.session_state.user_email = user_data["email"]
                     st.session_state.user_photo = user_data.get("profile_photo_path")
+                    st.session_state.onboarding_completed = user_data.get("onboarding_completed", True)
 
                     st.success(message)
                     # Redirect to main app

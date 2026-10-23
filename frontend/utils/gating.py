@@ -24,7 +24,7 @@ enforces the same rule; this frontend gate just mirrors it to disable the
 Start button / show the right explanatory message before any server call.
 """
 
-from turtle import st
+import streamlit as st
 
 from utils.quiz_api import get_mastery_summary
 from utils.practice_api import get_practice_analytics, complete_practice

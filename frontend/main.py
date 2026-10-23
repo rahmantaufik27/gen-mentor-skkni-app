@@ -41,12 +41,17 @@ is_logged_in = st.session_state.get("logged_in", False)
 
 if is_logged_in:
     # ========================================================================
-    # AUTHENTICATED - SHOW LEARNER PROFILE AS MAIN HUB
-    # (learner_profile.py handles all navigation)
+    # AUTHENTICATED - ONBOARDING (first login only) OR LEARNER PROFILE HUB
+    # (learner_profile.py handles all navigation). onboarding_completed comes
+    # from the backend at login (see pages/login.py) - defaults to True so a
+    # session missing it (e.g. an older login flow) never gets trapped in
+    # onboarding unexpectedly.
     # ========================================================================
-    
-    # Load the learner profile page as main hub
-    exec(open("pages/learner_profile.py", encoding="utf-8").read())
+    if not st.session_state.get("onboarding_completed", True):
+        exec(open("pages/onboarding.py", encoding="utf-8").read())
+    else:
+        # Load the learner profile page as main hub
+        exec(open("pages/learner_profile.py", encoding="utf-8").read())
 
 else:
     # ========================================================================

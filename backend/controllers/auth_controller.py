@@ -244,6 +244,26 @@ class AuthController:
             return jsonify({"success": False, "error": f"Error updating profile: {str(e)}"}), 500
 
     @staticmethod
+    def complete_onboarding():
+        """Mark the onboarding wizard complete for a user, optionally recording
+        their chosen SKKNI target role/level (onboarding's "Choose Your Path" step)."""
+        try:
+            data = request.get_json() or {}
+            user_id = data.get("user_id")
+            if not user_id:
+                return jsonify({"success": False, "error": "user_id is required"}), 400
+
+            target_role = data.get("target_role")
+            target_level = data.get("target_level")
+
+            success, message = AuthenticationService.complete_onboarding(user_id, target_role, target_level)
+            if success:
+                return jsonify({"success": True, "message": message}), 200
+            return jsonify({"success": False, "error": message}), 400
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Error completing onboarding: {str(e)}"}), 500
+
+    @staticmethod
     def change_password():
         """Change a user's password (My Profile page)."""
         try:
