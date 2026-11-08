@@ -44,5 +44,22 @@ def init_materials_routes(app, controller: MaterialsController):
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 
+    @materials_bp.route("/generate-learning", methods=["POST"])
+    def generate_learning_material():
+        """Generate learning content using existing materials for a unit."""
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return jsonify({"success": False, "error": "JSON object required"}), 400
+        unit_code = body.get("unit_code")
+        if not isinstance(unit_code, str) or not unit_code.strip():
+            return jsonify({"success": False, "error": "Unit code required"}), 400
+        competency_name = body.get("competency_name")
+        if not isinstance(competency_name, str) or not competency_name.strip():
+            return jsonify({"success": False, "error": "Competency name required"}), 400
+
+        result = controller.generate_learning_material(unit_code, competency_name)
+        status_code = 200 if result.get("success") else 502
+        return jsonify(result), status_code
+
     # Register blueprint
     app.register_blueprint(materials_bp)

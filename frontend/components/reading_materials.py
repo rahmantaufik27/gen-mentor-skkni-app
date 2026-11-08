@@ -7,10 +7,7 @@ can use it without knowing anything about materials.json, the recommendation
 logic, or the inline-viewer mechanics.
 """
 
-import re
-
 import streamlit as st
-import streamlit.components.v1 as components
 
 from utils.materials_api import get_all_materials, get_recommended_materials, material_source_id
 from utils.practice_api import record_material_view
@@ -45,36 +42,6 @@ def _type_icon(material_type: str) -> str:
 
 def _type_accent_kind(material_type: str) -> str:
     return TYPE_ACCENT_KIND.get((material_type or "").lower(), "neutral")
-
-
-def _to_embed_url(url: str) -> str:
-    """
-    Convert a share URL into an embeddable "preview" URL so the material can
-    be viewed inline without downloading it first. Falls back to the original
-    URL when no known provider pattern matches (many public pages still embed
-    fine as-is).
-    """
-    if not url:
-        return url
-
-    # Google Slides / Docs / Sheets: .../d/<ID>/edit... -> .../d/<ID>/preview
-    match = re.search(r"docs\.google\.com/(presentation|document|spreadsheets)/d/([^/]+)", url)
-    if match:
-        kind, file_id = match.group(1), match.group(2)
-        return f"https://docs.google.com/{kind}/d/{file_id}/preview"
-
-    # Google Drive file: .../file/d/<ID>/... -> .../file/d/<ID>/preview
-    match = re.search(r"drive\.google\.com/file/d/([^/]+)", url)
-    if match:
-        return f"https://drive.google.com/file/d/{match.group(1)}/preview"
-
-    # YouTube: watch?v=<ID> or youtu.be/<ID> -> /embed/<ID>
-    match = re.search(r"(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)", url)
-    if match:
-        return f"https://www.youtube.com/embed/{match.group(1)}"
-
-    # Direct PDF / unknown provider: most browsers render these natively in an iframe
-    return url
 
 
 def _material_note_fields(material: dict) -> dict:
@@ -157,12 +124,11 @@ def _render_material_card(material: dict, key_prefix: str, idx: int, show_status
                 # stats. Never blocks or breaks the viewer if it fails.
                 record_material_view(material.get("unit_code"))
                 # Mark it read for the rest of this session so the card
-                # tints green on the next rerun (opening the dialog below
-                # triggers one).
+                # tints green when the user returns to this list.
                 read_ids.add(source_id)
-                # Open the material in a modal dialog so it's immediately
-                # visible in the viewport (rather than below the fold).
-                _material_dialog(material)
+                st.query_params["material_id"] = source_id
+                st.session_state.current_page = "material_detail"
+                st.rerun()
         with save_col:
             fields = _material_note_fields(material)
             render_save_button(
@@ -185,22 +151,6 @@ def _render_material_card(material: dict, key_prefix: str, idx: int, show_status
                 st.session_state["discussion_prefill_nonce"] = st.session_state.get("discussion_prefill_nonce", 0) + 1
                 st.session_state.current_page = "discussion"
                 st.rerun()
-
-
-@st.dialog("Reading Material", width="large")
-def _material_dialog(material: dict):
-    """Show the selected material inside a modal dialog so its content is
-    immediately visible in the viewport (centered overlay), instead of an
-    inline viewer that could sit below the fold. Dismiss via the dialog's
-    built-in close control."""
-    st.markdown(f"#### {_type_icon(material.get('type'))} {material.get('title', 'Untitled')}")
-    st.caption(
-        f"Unit: {material.get('unit_code', '-')} · Type: {str(material.get('type', '-')).title()}"
-    )
-
-    embed_url = _to_embed_url(material.get("url", ""))
-    components.iframe(embed_url, height=600, scrolling=True)
-    st.caption(f"Having trouble viewing it here? [Open in a new tab ↗]({material.get('url', '')})")
 
 
 def render_reading_materials():

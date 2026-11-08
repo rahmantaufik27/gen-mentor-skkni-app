@@ -57,6 +57,19 @@ def get_all_materials() -> dict:
         return {"success": False, "error": str(e)}
 
 
+def generate_learning_material(unit_code: str, competency_name: str) -> dict:
+    """Generate learning content for a unit from its existing references."""
+    try:
+        response = httpx.post(
+            f"{backend_endpoint}api/materials/generate-learning",
+            json={"unit_code": unit_code, "competency_name": competency_name},
+            timeout=150,
+        )
+        return response.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 @st.cache_data(ttl=_STATIC_DATA_TTL)
 def get_all_units() -> dict:
     """

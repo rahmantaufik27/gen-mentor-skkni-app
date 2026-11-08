@@ -41,6 +41,7 @@ PAGE_TITLES = {
     "engagement": ("Engagement", "How consistently you're learning, and how you compare to peers"),
     "learning_path": ("Learning Path", "Curated resources based on your quiz results"),
     "reading_materials": ("Reading Materials", "Materials recommended based on your mastery gaps"),
+    "material_detail": ("Reading Material", "View the selected learning resource"),
     "practice": ("Practice with Generative Questions", "Adaptive practice questions for your weakest units"),
     "cue_questions": ("Cue Questions", "Saved question notes plus your own free-form question notes"),
     "key_points": ("Key Points", "Saved material and chat notes plus your own free-form notes"),
@@ -160,6 +161,13 @@ elif st.session_state.current_page == "reading_materials":
             exec(f.read())
     except Exception as e:
         st.error(f"Failed to load Reading Materials page: {str(e)}")
+
+elif st.session_state.current_page == "material_detail":
+    try:
+        with open("pages/material_detail.py", "r", encoding="utf-8") as f:
+            exec(f.read())
+    except Exception as e:
+        st.error(f"Failed to load material detail: {str(e)}")
 
 elif st.session_state.current_page == "practice":
     # ====================================================================

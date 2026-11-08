@@ -45,6 +45,9 @@ from neo4j.exceptions import Neo4jError, ServiceUnavailable
 
 from config.neo4j_config import Neo4jConfig
 
+logging.getLogger("root").setLevel(logging.WARNING)
+logging.getLogger("runtime").setLevel(logging.WARNING)
+
 BLOOM_LEVELS = ["C1", "C2", "C3", "C4", "C5", "C6"]
 
 # Parses a Concept.text value like:
@@ -116,7 +119,9 @@ class Neo4jService:
             self._driver.close()
             self._driver = None
 
-    def _run_query(self, cypher: str, params: Optional[Dict] = None, purpose: str = "") -> List[Dict]:
+    def _run_query(
+        self, cypher: str, params: Optional[Dict] = None, purpose: str = "", database: Optional[str] = None
+    ) -> List[Dict]:
         """
         Execute a Cypher query against the configured database, logging the
         query/params and the result. Never raises - returns [] on any error
@@ -129,7 +134,7 @@ class Neo4jService:
         single_line_cypher = " ".join(cypher.split())
         try:
             driver = self._get_driver()
-            with driver.session(database=self._params["database"]) as session:
+            with driver.session(database=database or self._params["database"]) as session:
                 result = session.run(cypher, params)
                 records = [record.data() for record in result]
             logger.info("[%s] query=%s params=%s -> %d record(s)", purpose, single_line_cypher, params, len(records))
@@ -213,7 +218,7 @@ class Neo4jService:
         records = self._run_query(
             """
             MATCH (unit:Unit)-[:HAS_CONCEPT]->(c:Concept)
-            RETURN c.text AS text, unit.kode AS unit_code
+            RETURN c.text AS text, unit.kode AS unit_code, unit.title AS competency_name
             ORDER BY unit.kode, c.text
             """,
             purpose="list_materials",
@@ -221,8 +226,30 @@ class Neo4jService:
         materials = []
         for r in records:
             parsed = _parse_concept_text(r.get("text"))
-            materials.append({**parsed, "unit_code": r.get("unit_code")})
+            materials.append({
+                **parsed,
+                "unit_code": r.get("unit_code"),
+                "competency_name": r.get("competency_name"),
+            })
         return materials
+
+    def get_existing_learning_materials(self, unit_code: str) -> List[str]:
+        """Reference materials in completeknowledgebase for one competency unit."""
+        records = self._run_query(
+            """
+            MATCH (cu:CompetencyUnit {kode: $kode})
+                  -[:HAS_ELEMENT]->(:ElementCompetency)
+                  -[:HAS_KNOWLEDGE_AND_SKILL]->(:KnowledgeAndSkill)
+                  -[:DERIVED_INTO]->(:Concept)
+                  -[:HAS_LEARNING_MATERIAL]->(lm:LearningMaterial)
+            RETURN lm.text AS text, lm.urutan AS urutan
+            ORDER BY lm.urutan
+            """,
+            {"kode": unit_code},
+            purpose="generate_learning_material_examples",
+            database="completeknowledgebase",
+        )
+        return [record["text"] for record in records if record.get("text")]
 
     def get_recommended_materials(self, user_id: str) -> List[Dict]:
         """

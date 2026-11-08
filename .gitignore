@@ -16,4 +16,12 @@ backend/data
 backend/db.ini
 backend/neo4j.ini
 backend/logs/
-.claude
+.cursor/
+.github/
+.graymatter/
+.mcp.json
+.vscode/
+.windsurf/
+AGENTS.md
+CLAUDE.md
+opencode.jsonc

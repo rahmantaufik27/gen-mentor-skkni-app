@@ -19,6 +19,7 @@ recommended without needing any change to the Neo4j query/sync itself.
 from typing import Dict, List, Optional
 
 from services.mastery_service import MasteryService
+from services.llm import get_llm_provider
 from services.neo4j_service import Neo4jService, get_neo4j_service
 
 
@@ -49,6 +50,53 @@ class MaterialsService:
         """Every unit's code + human-readable title (static, not
         user-specific) - e.g. for the Discussion page's unit picker."""
         return self.neo4j_service.get_all_units()
+
+    def generate_learning_material(self, unit_code: str, competency_name: str) -> Dict:
+        """Generate learning material centered on a competency, using references as support."""
+        unit_code = (unit_code or "").strip()
+        competency_name = (competency_name or "").strip()
+        if not unit_code:
+            raise ValueError("Unit code is required.")
+        if not competency_name:
+            raise ValueError("Competency name is required.")
+
+        examples = self.neo4j_service.get_existing_learning_materials(unit_code)
+        if not examples:
+            raise ValueError(f"No reference learning materials found for unit {unit_code}.")
+
+        references = []
+        remaining_chars = 6000
+        for example in examples:
+            if remaining_chars <= 0:
+                break
+            references.append(example[:remaining_chars])
+            remaining_chars -= len(example)
+        reference_text = "\n\n---\n\n".join(references)
+
+        prompt = f"""You are a curriculum writer.
+            UNIT CODE: {unit_code}
+            CORE COMPETENCY: {competency_name}
+
+            PRIMARY TASK:
+            Write ONE learning material in Bahasa Indonesia (3-5 paragraphs) that directly teaches and develops the CORE COMPETENCY above. Keep every explanation, example, and learning objective centered on this competency.
+
+            SUPPORTING REFERENCES:
+            Use the key points below only as supplemental context, examples, or enriching details when they are relevant to the core competency. Do not let them replace, narrow, or redirect the material away from the core competency.
+            {reference_text}
+
+            Include practical examples and relevant Junior Web Developer case studies where appropriate. Avoid repeating reference text verbatim.
+
+            Output format:
+            TOPIC: <topik yang berpusat pada kompetensi>
+            ---
+            MATERIAL:
+            <materi baru>"""
+        print("unit_code:", unit_code)
+        print("competency name:", competency_name)
+
+        provider = get_llm_provider()
+        content = provider.chat([{"role": "user", "content": prompt}])
+        return {"material": content, "provider": provider.name}
 
     def get_recommended_materials(self, user_id: str) -> Dict:
         """

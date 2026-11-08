@@ -39,6 +39,9 @@ inject_theme()
 # ============================================================================
 is_logged_in = st.session_state.get("logged_in", False)
 
+if is_logged_in and st.query_params.get("material_id"):
+    st.session_state.current_page = "material_detail"
+
 if is_logged_in:
     # ========================================================================
     # AUTHENTICATED - ONBOARDING (first login only) OR LEARNER PROFILE HUB

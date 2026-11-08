@@ -38,3 +38,11 @@ class MaterialsController:
             return {"success": True, "units": units}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def generate_learning_material(self, unit_code: str, competency_name: str) -> dict:
+        """Generate a learning material using the unit's Neo4j references."""
+        try:
+            result = self.materials_service.generate_learning_material(unit_code, competency_name)
+            return {"success": True, **result}
+        except Exception as e:
+            return {"success": False, "error": str(e)}

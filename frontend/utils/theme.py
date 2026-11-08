@@ -120,6 +120,7 @@ def render_sidebar_nav(active: str, submenus: dict = None):
                 type="primary" if is_active else "secondary",
                 key=f"nav_{item['key']}",
             ):
+                _clear_material_detail_route()
                 st.session_state.current_page = item["key"]
                 st.rerun()
 
@@ -128,6 +129,11 @@ def render_sidebar_nav(active: str, submenus: dict = None):
                 with st.container(key=f"submenu_{item['key']}"):
                     for entry in entries:
                         _render_submenu_entry(item["key"], entry, active)
+
+
+def _clear_material_detail_route():
+    if "material_id" in st.query_params:
+        del st.query_params["material_id"]
 
 
 def _render_submenu_entry(parent_key: str, entry: dict, active: str):
@@ -148,6 +154,7 @@ def _render_submenu_entry(parent_key: str, entry: dict, active: str):
                     type="primary" if child_is_active else "secondary",
                     key=f"nav_grandchild_{parent_key}_{child['key']}",
                 ):
+                    _clear_material_detail_route()
                     st.session_state.current_page = child["key"]
                     st.rerun()
         return
@@ -159,6 +166,7 @@ def _render_submenu_entry(parent_key: str, entry: dict, active: str):
         type="primary" if entry_is_active else "secondary",
         key=f"nav_child_{parent_key}_{entry['key']}",
     ):
+        _clear_material_detail_route()
         st.session_state.current_page = entry["key"]
         st.rerun()
 

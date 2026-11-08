@@ -174,7 +174,8 @@ def create_app(config=None):
                 },
                 "materials": {
                     "get_all": "GET /api/materials/all",
-                    "get_recommended": "GET /api/materials/recommended"
+                    "get_recommended": "GET /api/materials/recommended",
+                    "generate_learning": "POST /api/materials/generate-learning"
                 },
                 "practice": {
                     "start_practice": "POST /api/practice/start",
