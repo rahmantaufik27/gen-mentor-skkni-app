@@ -63,8 +63,7 @@ if "current_page" not in st.session_state:
 # Placement Test) is eligible only before it's ever been taken; Practice
 # becomes eligible from then on, for good (a Test can never be retaken).
 # Used below for the Placement Test header and passed to each page, which
-# disables its own Start button rather than the sidebar entry -
-# Test/Practice stay visible and clickable at all times.
+# disables its own Start button rather than the sidebar entry.
 # ============================================================================
 gating = get_learning_gating()
 
@@ -230,7 +229,15 @@ else:  # profile (default)
 # ============================================================================
 # LEARNING ASSISTANT FLOATING WIDGET - rendered last (position:fixed via CSS
 # lifts it out of normal page flow regardless of DOM order) and OUTSIDE the
-# page branching above, so it's visible on every page, not just one menu
-# entry - see components/chatbot_widget.py for why.
+# page branching above, so it's visible on non-assessment pages - see
+# components/chatbot_widget.py for why.
 # ============================================================================
-render_chatbot_widget()
+assessment_session_active = (
+    st.session_state.get("test_started", False)
+    and not st.session_state.get("test_completed", False)
+) or (
+    st.session_state.get("practice_started", False)
+    and not st.session_state.get("practice_completed", False)
+)
+if not assessment_session_active:
+    render_chatbot_widget()

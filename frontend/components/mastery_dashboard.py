@@ -130,7 +130,12 @@ def render_nudge_banner():
     ]
     substantive_dates = [d for d in substantive_dates if d]
 
-    remedial_units = stats.get("remedial_units", 0)
+    mastery = get_mastery_summary()
+    remedial_units = None
+    has_completed_test = False
+    if mastery.get("success"):
+        remedial_units = len(mastery.get("effective_remedial_units", []))
+        has_completed_test = bool(mastery.get("pre_test_completed") or mastery.get("post_test_completed"))
 
     if not substantive_dates:
         st.info(
@@ -142,14 +147,18 @@ def render_nudge_banner():
     days_since = (datetime.now() - max(datetime.fromisoformat(d) for d in substantive_dates)).days
 
     if days_since >= 3:
-        st.warning(
-            f"⏰ It's been **{days_since} days** since your last study session. "
-            + (
-                f"You still have **{remedial_units} unit(s)** to master - jump back into Practice or Reading Materials."
-                if remedial_units else "Come back and keep your momentum going!"
+        message = f"⏰ It's been **{days_since} days** since your last study session. "
+        if remedial_units:
+            message += (
+                f"You still have **{remedial_units} unit(s)** to master - "
+                "jump back into Practice or Reading Materials."
             )
+        else:
+            message += "Come back and keep your momentum going!"
+        st.warning(
+            message
         )
-    elif remedial_units > 0:
+    elif remedial_units is not None and remedial_units > 0:
         st.info(
             f"🎯 You have **{remedial_units} unit(s)** still Remedial. "
             "Keep practicing to move them to Mastered."
@@ -157,7 +166,10 @@ def render_nudge_banner():
     else:
         streak = stats.get("current_streak_days", 0)
         if streak >= 2:
-            st.success(f"🔥 **{streak}-day streak!** All units Mastered and still going - great consistency.")
+            if has_completed_test and remedial_units == 0:
+                st.success(f"🔥 **{streak}-day streak!** No Practice recommendations remain. Great consistency.")
+            else:
+                st.success(f"🔥 **{streak}-day streak!** Great consistency, keep learning.")
 
 
 def _render_test_analytics(code_map: dict):

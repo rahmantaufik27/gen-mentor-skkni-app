@@ -237,7 +237,6 @@ def render_test_progress():
 
         col1, col2 = st.columns(2)
 
-        # Submit answer
         with col1:
             if st.button("Submit Answer", use_container_width=True, type="primary"):
                 submit_result = submit_answer(
@@ -249,22 +248,18 @@ def render_test_progress():
                 if submit_result.get("success"):
                     progress_data = submit_result.get("progress", {})
 
-                    # Check if test is completed
                     if progress_data.get("answered") >= total_questions:
-                        # Test finished - auto-complete
                         complete_result = complete_quiz(session_id)
                         if complete_result.get("success"):
                             st.session_state.test_completed = True
                             st.session_state.test_result = complete_result
                             st.rerun()
                     else:
-                        # Move to next question
                         st.session_state.test_current_question += 1
                         st.rerun()
                 else:
                     st.error(f"Failed to submit answer: {submit_result.get('error')}")
 
-        # Quit test
         with col2:
             if st.button("Exit Test", use_container_width=True):
                 st.session_state.test_started = False

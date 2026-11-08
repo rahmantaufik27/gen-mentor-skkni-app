@@ -206,8 +206,6 @@ def _render_practice_progress():
                         st.error(f"Failed to submit answer: {submit_result.get('error')}")
 
             with col2:
-                # Save-to-Notes for this specific question. Snapshot keeps the question
-                # + options so the note stays readable outside the live session.
                 if question_id:
                     saved_q_ids = get_saved_source_ids(SOURCE_QUESTION)
                     snapshot = question_text + "\n\n" + "\n".join(f"- {opt}" for opt in choice_options)

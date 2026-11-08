@@ -2,7 +2,7 @@
 LLM provider package - the modular seam behind the chatbot.
 
 get_llm_provider() is the ONE place that decides which concrete provider the
-app uses. Today it's Ollama (local qwen2.5:1.5b); switching to another local
+app uses. Today it's Ollama (local qwen3:4b-instruct); switching to another local
 model or a cloud API (e.g. OpenAI/ChatGPT) is a matter of adding a subclass
 and one branch here (or setting the LLM_PROVIDER env var) - nothing
 downstream changes.

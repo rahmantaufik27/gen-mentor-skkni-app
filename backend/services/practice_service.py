@@ -60,6 +60,8 @@ def _parse_option(text: Optional[str]) -> Dict:
     match = _OPTION_RE.match(text or "")
     if match:
         return {"id": match.group(1).upper(), "text": match.group(2)}
+    if (text or "").strip().upper() in {"A", "B", "C", "D"}:
+        return {"id": text.strip().upper(), "text": ""}
     return {"id": "?", "text": text or ""}
 
 

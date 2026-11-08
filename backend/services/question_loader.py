@@ -2,28 +2,26 @@
 Service for loading and managing question datasets.
 """
 
-import json
-import os
-from typing import List, Dict, Any
-from models.model import Question, Choice, AnswerType
+from typing import List, Optional
+
+from models.model import AnswerType, Choice, Question
+from services.neo4j_service import Neo4jService, get_neo4j_service
 
 
 class QuestionLoader:
-    """Loader for question datasets from JSON files"""
+    """Load and normalize questions from the completeknowledgebase Neo4j database."""
 
-    def __init__(self, data_dir: str):
+    def __init__(self, data_dir: Optional[str] = None, neo4j_service: Optional[Neo4jService] = None):
         """
-        Initialize question loader
-        
-        Args:
-            data_dir: Path to data directory containing JSON files
+        `data_dir` remains accepted for compatibility with existing callers; questions are loaded from Neo4j.
         """
         self.data_dir = data_dir
+        self.neo4j_service = neo4j_service or get_neo4j_service()
         self.questions_cache = None
 
     def load_questions(self) -> List[Question]:
         """
-        Load questions from questions.json
+        Load questions from Neo4j and convert them to the existing Question model.
         
         Returns:
             List of Question objects
@@ -31,30 +29,23 @@ class QuestionLoader:
         if self.questions_cache:  # load once, reuse for the lifetime of the process
             return self.questions_cache
 
-        questions_path = os.path.join(self.data_dir, "questions.json")
-        
-        if not os.path.exists(questions_path):
-            raise FileNotFoundError(f"Questions file not found: {questions_path}")
-
-        with open(questions_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+        data = self.neo4j_service.get_all_test_questions()
 
         questions = []
         for idx, q_data in enumerate(data):
-            # Extract correct answer letter (a, b, c, d)
-            correct_answer = str(q_data.get("correct_answer", "")).upper().strip(")")
+            correct_answer = str(q_data.get("correct_answer_text", "")).upper().strip()
 
             # Map answer letter to its 0-based option index
             letter_to_index = {"A": 0, "B": 1, "C": 2, "D": 3, "a": 0, "b": 1, "c": 2, "d": 3}
             correct_idx = letter_to_index.get(correct_answer, 0)
             
             # Parse options and build choices
-            options = q_data.get("options", [])
+            options = q_data.get("options") or []
             choices = []
             
             for choice_idx, option_text in enumerate(options):
                 # Clean option text (remove "a) ", "b) ", etc.)
-                clean_text = option_text.strip()
+                clean_text = str(option_text or "").strip()
                 if len(clean_text) > 2 and clean_text[1] in [")", "."]:
                     clean_text = clean_text[3:].strip()
                 elif len(clean_text) > 3 and clean_text[1:3] == ") ":
@@ -68,7 +59,7 @@ class QuestionLoader:
                 choices.append(choice)
             
             # Extract category from unit (use last segment for category)
-            unit = q_data.get("unit", "General")  # Keep original (untruncated) unit code
+            unit = q_data.get("unit_code", "General")  # Keep original (untruncated) unit code
             category = unit.split(".")[-1] if unit else "General"
 
             # Bloom taxonomy level (C1-C6) drives both scoring and mastery evaluation
@@ -83,12 +74,12 @@ class QuestionLoader:
                 difficulty = "hard"
 
             question = Question(
-                id=f"q{idx+1}",
-                question_text=q_data.get("question", ""),
+                id=str(q_data.get("question_id") or f"q{idx+1}"),
+                question_text=q_data.get("question_text", ""),
                 category=category,
                 difficulty=difficulty,
                 choices=choices,
-                explanation=q_data.get("explanation", ""),
+                explanation=q_data.get("explanation") or "",
                 unit=unit,  # Preserve original unit
                 bloom_level=bloom,  # Preserve bloom level
                 answer_type=AnswerType.MULTIPLE_CHOICE.value

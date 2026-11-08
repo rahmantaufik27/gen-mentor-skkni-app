@@ -30,7 +30,7 @@ class LLMProvider(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Short identifier for logs/debugging, e.g. 'ollama:qwen2.5:1.5b'."""
+        """Short identifier for logs/debugging, e.g. 'ollama:qwen3:4b-instruct'."""
         raise NotImplementedError
 
     @abstractmethod

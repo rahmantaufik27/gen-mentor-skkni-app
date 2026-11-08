@@ -3,20 +3,19 @@ Dedicated Neo4j module: owns the driver connection, all Cypher queries, and
 synchronization from PostgreSQL (the source of truth) into the Neo4j
 knowledge graph used for recommendations.
 
-This connects to an EXISTING knowledge graph (instance "genq_skkni" in Neo4j
-Desktop, database "neo4j") that already contains the SKKNI unit/material/
-question structure:
+This connects to two EXISTING knowledge graphs. The configured database
+(normally "neo4j") contains learner mastery and recommendations:
 
     (:Unit {kode, title})
       -[:HAS_CONCEPT]->(:Concept {text})            <- reading materials
-      -[:HAS_EVALUATION]->(:Evaluation {soal, bloom_level, jawaban})  <- questions
-           -[:HAS_OPTION]->(:Option {text})
-           -[:HAS_CORRECT_ANSWER]->(:Answer {text})
            -[:HAS_LEVEL]->(:Level {name})
 
-This module does NOT create parallel Material/Question nodes - it reads
-Concept/Evaluation directly, and adds only what doesn't already exist:
-User nodes and the (User)-[:MASTERY]->(Unit) relationship.
+The "completeknowledgebase" database contains the canonical question bank,
+read through CompetencyUnit/ElementCompetency/PerformanceCriterion and
+EvaluationQuestion/AnswerOption/CorrectAnswer nodes. This module does NOT
+create parallel question nodes; it reads that graph directly. It also adds
+only what doesn't already exist in the configured database: User nodes and
+the (User)-[:MASTERY]->(Unit) relationship.
 
 Design notes:
 - Neo4j stores ONLY the current knowledge graph for recommendations.
@@ -233,6 +232,38 @@ class Neo4jService:
             })
         return materials
 
+    def _query_completeknowledgebase_questions(
+        self, unit_codes: Optional[List[str]] = None, purpose: str = "list_test_questions"
+    ) -> List[Dict]:
+        """Read question records and answer data from completeknowledgebase."""
+        return self._run_query(
+            """
+            MATCH (cu:CompetencyUnit)-[:HAS_ELEMENT]->(:ElementCompetency)
+                  -[:HAS_PERFORMANCE_CRITERION]->(:PerformanceCriterion)
+                  -[:ASSESSED_BY]->(q:EvaluationQuestion)
+            WHERE $unit_codes IS NULL OR cu.kode IN $unit_codes
+            WITH DISTINCT cu, q
+            OPTIONAL MATCH (q)-[:HAS_ANSWER_OPTION]->(option:AnswerOption)
+            WITH cu, q, option
+            ORDER BY cu.kode, q.bloom_level, q.soal, option.text
+            WITH cu, q, collect(DISTINCT option.text) AS options
+            OPTIONAL MATCH (q)-[:HAS_CORRECT_ANSWER]->(answer:CorrectAnswer)
+                 WITH cu, q, options, collect(DISTINCT answer.text) AS correct_answers
+            RETURN elementId(q) AS question_id, q.soal AS question_text,
+                     q.bloom_level AS bloom_level,
+                   cu.kode AS unit_code, options,
+                     coalesce(head(correct_answers), q.jawaban) AS correct_answer_text
+            ORDER BY unit_code, bloom_level, question_text
+            """,
+            {"unit_codes": unit_codes},
+            purpose=purpose,
+            database="completeknowledgebase",
+        )
+
+    def get_all_test_questions(self) -> List[Dict]:
+        """Return the complete question bank for the Test generator."""
+        return self._query_completeknowledgebase_questions()
+
     def get_existing_learning_materials(self, unit_code: str) -> List[str]:
         """Reference materials in completeknowledgebase for one competency unit."""
         records = self._run_query(
@@ -315,20 +346,30 @@ class Neo4jService:
         get_recommended_questions() explicitly whitelists fields and does
         not forward it to the public API.
         """
-        records = self._run_query(
+        mastery_records = self._run_query(
             """
-            MATCH (u:User {id: $user_id})-[m:MASTERY]->(unit:Unit)-[:HAS_EVALUATION]->(e:Evaluation)
+            MATCH (u:User {id: $user_id})-[m:MASTERY]->(unit:Unit)
             WHERE m.mastery_status = 'Remedial'
-            OPTIONAL MATCH (e)-[:HAS_OPTION]->(o:Option)
-            WITH u, unit, m, e, collect(o.text) AS options
-            RETURN elementId(e) AS question_id, e.soal AS question_text, e.bloom_level AS bloom_level,
-                   options, e.jawaban AS correct_answer_text, unit.kode AS unit_code,
-                   m.mastery_status AS mastery_status, m.target_level AS target_level,
-                   coalesce(m.knowledge_level, 'C1') AS current_level
+            RETURN unit.kode AS unit_code, m.mastery_status AS mastery_status,
+                   m.target_level AS target_level, coalesce(m.knowledge_level, 'C1') AS current_level
             """,
             {"user_id": user_id},
-            purpose="recommend_questions",
+            purpose="recommend_question_units",
         )
+        if not mastery_records:
+            return []
+
+        mastery_by_unit = {record.get("unit_code"): record for record in mastery_records}
+        records = self._query_completeknowledgebase_questions(
+            list(mastery_by_unit), purpose="recommend_questions"
+        )
+        for record in records:
+            mastery = mastery_by_unit.get(record.get("unit_code"), {})
+            record.update({
+                "mastery_status": mastery.get("mastery_status"),
+                "target_level": mastery.get("target_level"),
+                "current_level": mastery.get("current_level") or "C1",
+            })
 
         # Group candidates by unit, then by Bloom level (C1-C6, uncapped),
         # tracking each unit's current_level for the final sort.
