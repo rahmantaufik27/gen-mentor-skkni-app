@@ -16,18 +16,6 @@ served from Neo4j (see utils/materials_api.py::get_all_units).
 ACTIVE_LEVEL = 4
 ACTIVE_ROLE = "Assistant Web Developer"
 
-# Icon shown on each level's ladder rung (Step 2's career-ladder preview).
-LEVEL_ICONS = {
-    2: "🧩", 3: "🔧", 4: "🖥️", 5: "🧱", 6: "🎯", 7: "📈", 8: "🚀", 9: "🏆",
-}
-
-# Rung color, low level (orange) -> high level (green) - mirrors Figure
-# 2.3's own gradient convention.
-LEVEL_COLORS = {
-    2: "#E2764F", 3: "#E2924F", 4: "#DDA84F", 5: "#CBB257",
-    6: "#A9B860", 7: "#85B96C", 8: "#63B87C", 9: "#3FAE72",
-}
-
 # {level: [role names]} - level 4's only entry IS the active track
 # (ACTIVE_ROLE); every role at every other level is a locked preview, not
 # real, gated content.

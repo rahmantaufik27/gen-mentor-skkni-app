@@ -1,24 +1,47 @@
 /* ============================================================================
-   GenMentor — shared design system
+   GAMASKILL — shared design system
    Palette, typography, and component styling for the whole app.
    Loaded once via utils/theme.py::inject_theme() on every page.
+
+   Palette direction: sarjana.jteti.ugm.ac.id (gold #FFC600 / deep navy
+   #01172E / teal #1C8CA3, Montserrat) - sampled from that site and adapted
+   into GAMASKILL's own token set below, not copied verbatim. See the
+   "GAMASKILL Redesign Study" artifact for the before/after this came from.
    ============================================================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
 :root {
-    --primary: #1B274C;
-    --primary-hover: #172141;
-    --accent: #D5A23A;
-    --success: #008000;
-    --background: #F6F8FA;
+    --primary: #0B1C2E;
+    --primary-hover: #15314B;
+    --accent: #FFC600;
+    --accent-deep: #8A6400;
+    --teal: #0E7490;
+    --success: #1C7A4D;
+    --background: #F6F6F3;
     --card: #FFFFFF;
-    --soft: #EAF0F5;
-    --text: #182133;
-    --text-muted: #63748C;
-    --border: #DCE3E8;
-    --radius: 14px;
+    --soft: #EFEFEA;
+    --text: #1C2127;
+    --text-muted: #6B6F76;
+    --border: #E3E3DE;
+    --radius: 10px;
     --radius-sm: 8px;
     --shadow: 0 1px 3px rgba(17, 24, 39, 0.06), 0 4px 12px rgba(17, 24, 39, 0.05);
-    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto, Helvetica, Arial, sans-serif;
+    --font: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+
+    /* Dark sidebar chrome - deliberately its own token set rather than
+       reusing --primary (which stays the light-surface action color for
+       buttons elsewhere): the sidebar is the one surface that's dark,
+       following the reference site's own dark navbar convention instead of
+       the light-sidebar-with-thin-accent look of most templates. */
+    --sidebar-bg: #0B1C2E;
+    --sidebar-text: rgba(255, 255, 255, 0.82);
+    --sidebar-text-muted: rgba(255, 255, 255, 0.45);
+    --sidebar-border: rgba(255, 255, 255, 0.12);
+    --sidebar-hover: rgba(255, 255, 255, 0.08);
+    --sidebar-active-bg: #FFC600;
+    --sidebar-active-text: #0B1C2E;
 
     /* Calm "edtech" accents for content-type color coding (material icons/
        chips) - kept apart from --primary/--success/--accent, which stay
@@ -33,11 +56,41 @@
     --edu-amber-bg: rgba(217, 119, 6, 0.10);
 }
 
+/* Unit codes, stats, and other data values get the mono face - distinct
+   from running text, legible at a glance in badges/chips. */
+.gm-code {
+    font-family: var(--font-mono) !important;
+    font-weight: 700;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Base / typography                                                      */
 /* ---------------------------------------------------------------------- */
 
+/* `html, body, .stApp` alone only sets font-family on the page root and
+   relies on inheritance to carry it down - but Streamlit's own base
+   stylesheet sets font-family directly on specific inner elements
+   (headings, paragraphs, buttons, via its own classes), and a rule that
+   directly matches an element always wins over one it would merely have
+   inherited, regardless of !important on the ancestor (the same cascade
+   trap documented elsewhere in this file for button labels and sidebar
+   text). A universal selector closes that gap by matching every element
+   directly instead of counting on inheritance. */
 html, body, .stApp, [class*="css"] {
+    font-family: var(--font) !important;
+}
+
+/* Excludes [role="img"]: Streamlit's `:material/xxx:` icon shorthand (used
+   for the sidebar nav icons, logout icon, etc.) renders as a text ligature
+   ("rocket_launch", "account_circle"...) that only turns into a glyph when
+   shown with its icon font, "Material Symbols Rounded" - set via an INLINE
+   style="font-family:..." on a <span role="img">. An external !important
+   rule still beats an inline style that has no !important of its own, so
+   the universal override below would otherwise win and the ligature names
+   would render as literal text instead of icons. */
+*:not([role="img"]),
+*::before,
+*::after {
     font-family: var(--font) !important;
 }
 
@@ -88,8 +141,8 @@ header[data-testid="stHeader"] {
 /* ---------------------------------------------------------------------- */
 
 section[data-testid="stSidebar"] {
-    background-color: var(--card);
-    border-right: 1px solid var(--border);
+    background-color: var(--sidebar-bg);
+    border-right: none;
 }
 
 section[data-testid="stSidebar"] div[data-testid="stMainBlockContainer"] {
@@ -102,15 +155,15 @@ section[data-testid="stSidebar"] div[data-testid="stMainBlockContainer"] {
     gap: 10px;
     padding: 4px 4px 20px 4px;
     margin-bottom: 12px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--sidebar-border);
 }
 
 .gm-brand-mark {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
-    background: var(--primary);
-    color: #fff;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--sidebar-active-text);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -124,17 +177,20 @@ section[data-testid="stSidebar"] div[data-testid="stMainBlockContainer"] {
     min-width: 0;
 }
 
+/* Sidebar-only (the auth-page variant uses .gm-auth-brand-text instead,
+   still dark-on-light - see that rule further down) - on the dark sidebar
+   these need to be light, not the default dark --text. */
 .gm-brand-text {
     font-size: 18px;
     font-weight: 700;
-    color: var(--text);
+    color: #fff;
     line-height: 1.1;
 }
 
 .gm-brand-tagline {
     font-size: 11px;
     font-weight: 500;
-    color: var(--text-muted);
+    color: var(--sidebar-text-muted);
     line-height: 1.3;
     margin-top: 2px;
 }
@@ -144,7 +200,7 @@ section[data-testid="stSidebar"] div[data-testid="stMainBlockContainer"] {
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--text-muted);
+    color: var(--sidebar-text-muted);
     margin: 4px 0 6px 6px;
 }
 
@@ -157,24 +213,43 @@ section[data-testid="stSidebar"] .stButton button {
     margin-bottom: 2px;
 }
 
-section[data-testid="stSidebar"] .stButton button[kind="secondary"] {
+section[data-testid="stSidebar"] .stButton button[kind^="secondary"] {
     background-color: transparent !important;
     border: 1px solid transparent !important;
-    color: var(--text) !important;
+    color: var(--sidebar-text) !important;
 }
 
-section[data-testid="stSidebar"] .stButton button[kind="secondary"]:hover {
-    background-color: var(--soft) !important;
-    border-color: var(--border) !important;
+/* Same "label lives in a child <p>, which wins the inherited color" issue
+   as the primary button below - the base typography rule
+   (p, span, label, li { color: var(--text) }) directly matches that <p>,
+   so it silently overrode this button's own `color` on every inactive
+   sidebar item (near-black text on navy, effectively invisible) until this
+   was added. */
+section[data-testid="stSidebar"] .stButton button[kind^="secondary"] p,
+section[data-testid="stSidebar"] .stButton button[kind^="secondary"] span,
+section[data-testid="stSidebar"] .stButton button[kind^="secondary"] div {
+    color: var(--sidebar-text) !important;
 }
 
-/* The active/selected menu item - background is the navy brand color, so
-   its text is set to white here for contrast (everything else in the
-   sidebar keeps the default dark text on white). */
-section[data-testid="stSidebar"] .stButton button[kind="primary"] {
-    background-color: var(--primary) !important;
-    border-color: var(--primary) !important;
-    color: #fff !important;
+section[data-testid="stSidebar"] .stButton button[kind^="secondary"]:hover {
+    background-color: var(--sidebar-hover) !important;
+    border-color: var(--sidebar-border) !important;
+}
+
+/* The active/selected menu item - solid gold, same as the active state on
+   the reference site's own dark navbar. Its label text is overridden to
+   dark ink just below, winning over the global white-label rule for
+   primary buttons (higher specificity: this is scoped under the sidebar). */
+section[data-testid="stSidebar"] .stButton button[kind^="primary"] {
+    background-color: var(--sidebar-active-bg) !important;
+    border-color: var(--sidebar-active-bg) !important;
+    color: var(--sidebar-active-text) !important;
+}
+
+section[data-testid="stSidebar"] .stButton button[kind^="primary"] p,
+section[data-testid="stSidebar"] .stButton button[kind^="primary"] span,
+section[data-testid="stSidebar"] .stButton button[kind^="primary"] div {
+    color: var(--sidebar-active-text) !important;
 }
 
 /* Sidebar submenu (e.g. Learning Path's Reading Materials / Exercises /
@@ -182,7 +257,7 @@ section[data-testid="stSidebar"] .stButton button[kind="primary"] {
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] {
     margin: 0 0 6px 10px;
     padding-left: 10px;
-    border-left: 2px solid var(--border);
+    border-left: 2px solid var(--sidebar-border);
 }
 
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] .stButton button {
@@ -226,7 +301,7 @@ section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="
     padding: 0.4rem 0.55rem !important;
     font-size: 0.85rem !important;
     font-weight: 500 !important;
-    color: var(--text) !important;
+    color: var(--sidebar-text) !important;
     border: none !important;
 }
 
@@ -239,16 +314,16 @@ section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary div {
     font-size: 0.85rem !important;
     font-weight: 500 !important;
-    color: var(--text) !important;
+    color: var(--sidebar-text) !important;
 }
 
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] summary:hover {
-    background-color: var(--soft) !important;
+    background-color: var(--sidebar-hover) !important;
 }
 
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] svg {
-    color: var(--text-muted) !important;
-    fill: var(--text-muted) !important;
+    color: var(--sidebar-text-muted) !important;
+    fill: var(--sidebar-text-muted) !important;
 }
 
 section[data-testid="stSidebar"] div[class*="st-key-submenu_"] div[data-testid="stExpander"] .stButton button {
@@ -341,6 +416,22 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
     padding: 4px 15px;
 }
 
+/* Streamlit wraps the ENTIRE sidebar body in one of these same
+   stVerticalBlockBorderWrapper divs even though render_sidebar_nav() never
+   asks for a bordered container - before the redesign this was invisible
+   (the sidebar's own background was white too, so a white card nested
+   inside a white sidebar showed nothing), but now that the sidebar is dark
+   ink, that same white card renders as an obvious white panel floating
+   inside it (and turns the white brand wordmark invisible, white-on-white).
+   Neutralize it back to transparent, scoped to the sidebar only - every
+   other st.container(border=True) in the main content area keeps its
+   intended white card background from the rule above. */
+section[data-testid="stSidebar"] div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
 /* ---------------------------------------------------------------------- */
 /* Buttons                                                                 */
 /* ---------------------------------------------------------------------- */
@@ -352,7 +443,7 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
     transition: all 0.15s ease;
 }
 
-.stButton button[kind="primary"], .stFormSubmitButton button[kind="primary"] {
+.stButton button[kind^="primary"], .stFormSubmitButton button[kind^="primary"] {
     background-color: var(--primary) !important;
     border-color: var(--primary) !important;
     color: #fff !important;
@@ -369,27 +460,27 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(> div > div[data-testid="stV
    labels (e.g. the active sidebar item) render navy-on-navy, effectively
    invisible. Target the label elements directly so they actually turn
    white. */
-.stButton button[kind="primary"] p,
-.stButton button[kind="primary"] span,
-.stButton button[kind="primary"] div,
-.stFormSubmitButton button[kind="primary"] p,
-.stFormSubmitButton button[kind="primary"] span,
-.stFormSubmitButton button[kind="primary"] div {
+.stButton button[kind^="primary"] p,
+.stButton button[kind^="primary"] span,
+.stButton button[kind^="primary"] div,
+.stFormSubmitButton button[kind^="primary"] p,
+.stFormSubmitButton button[kind^="primary"] span,
+.stFormSubmitButton button[kind^="primary"] div {
     color: #fff !important;
 }
 
-.stButton button[kind="primary"]:hover, .stFormSubmitButton button[kind="primary"]:hover {
+.stButton button[kind^="primary"]:hover, .stFormSubmitButton button[kind^="primary"]:hover {
     background-color: var(--primary-hover) !important;
     border-color: var(--primary-hover) !important;
 }
 
-.stButton button[kind="secondary"], .stFormSubmitButton button[kind="secondary"] {
+.stButton button[kind^="secondary"], .stFormSubmitButton button[kind^="secondary"] {
     background-color: var(--card) !important;
     border: 1px solid var(--border) !important;
     color: var(--text) !important;
 }
 
-.stButton button[kind="secondary"]:hover {
+.stButton button[kind^="secondary"]:hover {
     border-color: var(--primary) !important;
     color: var(--primary) !important;
 }
@@ -439,8 +530,14 @@ div[data-testid="stMetricValue"] {
 /* ---------------------------------------------------------------------- */
 
 div[data-testid="stAlert"] {
-    /* border-radius: var(--radius-sm) !important; */
+    background-color: var(--soft) !important;
     border: 1px solid var(--border) !important;
+    border-left: 3px solid var(--accent) !important;
+    border-radius: var(--radius-sm) !important;
+}
+
+div[data-testid="stAlert"] strong {
+    color: var(--accent-deep) !important;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -466,7 +563,7 @@ div[data-testid="stDataFrame"] {
 }
 
 .gm-badge-success {
-    background-color: rgba(0, 128, 0, 0.10);
+    background-color: rgba(28, 122, 77, 0.10);
     color: var(--success);
 }
 
@@ -506,7 +603,7 @@ div[data-testid="stDataFrame"] {
 .gm-badge-read {
     /* Same green as gm-badge-success (Mastered) - "read" and "mastered" are
        both progress signals, so they share one consistent color language. */
-    background-color: rgba(0, 128, 0, 0.10);
+    background-color: rgba(28, 122, 77, 0.10);
     color: var(--success);
 }
 
@@ -536,7 +633,7 @@ div[class*="st-key-gm_material_card_"]:hover {
    distinct from the border rule above by matching the "_read_" part of
    the key so unread cards keep the neutral border/background. */
 div[class*="st-key-gm_material_card_read_"] {
-    background-color: rgba(0, 128, 0, 0.06) !important;
+    background-color: rgba(28, 122, 77, 0.06) !important;
     border-color: var(--success) !important;
 }
 
@@ -647,7 +744,7 @@ div[class*="st-key-gm_material_card_"] .stButton button {
    success green used for "Mastered"/"Read" elsewhere, so "best answer"
    reads as a positive/resolved signal consistently across the app. */
 div[class*="st-key-discussion_reply_card_best_"] {
-    background-color: rgba(0, 128, 0, 0.06) !important;
+    background-color: rgba(28, 122, 77, 0.06) !important;
     border: 1px solid var(--success) !important;
 }
 
@@ -832,104 +929,235 @@ div[class*="st-key-chatbot_panel"] .stTextInput input {
     border-radius: 999px;
 }
 
-/* Step 2 "Choose Your Path" - career ladder preview, staged as a rising
-   staircase (each level a notch higher than the last) rather than a flat
-   row, so climbing levels is felt, not just labeled. */
-.gm-onb-ladder-wrap {
-    background: linear-gradient(112deg, #FCF8EF 0%, #F5F8F5 45%, #EEF7F1 100%);
-    border: 1px solid #ECE3CC;
+/* Step 2 "Choose Your Path" - career ladder preview as a connected rail:
+   one continuous line (solid where the path is already open up to
+   ACTIVE_LEVEL, muted where still locked), role cards zigzagging above/
+   below their level's node so longer titles ("Software Engineer Manager")
+   get real room instead of a cramped staircase of pills. Status (locked /
+   available / goal / top) is carried by color and type alone - no
+   per-level icon. See the approved "SKKNI Ladder - Style Exploration"
+   design artifact, Option B ("The Rail"), for the source mockup. */
+.gm-rail-wrap {
+    background: var(--soft);
+    border: 1px solid var(--border);
     border-radius: 13px;
-    padding: 10px 10px 8px;
+    padding: 14px 16px 16px;
     margin: 6px 0 4px;
 }
 
-.gm-onb-ladder {
+.gm-rail-legend {
     display: flex;
-    align-items: flex-end;
-    overflow-x: auto;
-    padding: 92px 6px 6px;
-    gap: 20px;
-}
-
-.gm-onb-lchip {
-    flex: none;
-    width: 122px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    position: relative;
-}
-
-.gm-onb-lv-badge {
-    font-size: 11.5px;
+    gap: 16px;
+    margin-bottom: 10px;
+    font-size: 11px;
     color: var(--text-muted);
-    margin-bottom: 6px;
-    letter-spacing: 0.06em;
-    font-weight: 700;
 }
 
-.gm-onb-role-pill {
+.gm-rail-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.gm-rail-legend i {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--border);
+    box-sizing: border-box;
+}
+
+.gm-rail-legend i.open {
+    background: var(--primary);
+    border: none;
+}
+
+.gm-rail-legend i.goal {
+    background: var(--accent);
+    border: none;
+}
+
+.gm-rail-legend i.current {
+    background: #fff;
+    border: 2px solid var(--primary);
+}
+
+.gm-rail-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 4px 4px 8px;
+}
+
+/* Each step reserves room for a card on EITHER side (above or below) so
+   the node always lands at the same y - that's what keeps the rail
+   straight regardless of which levels zigzag up vs down. Card height is a
+   fixed 104px (not min-height/auto): sized for the longest real role name
+   in the dataset at 3 wrapped lines ("Associate Application Programmer")
+   plus the level tag and status line, so nothing overflows the box; a
+   shorter name just leaves its status line anchored to the card's bottom
+   edge (`.gm-rail-status`'s `margin-top:auto`) instead of floating mid-box. */
+.gm-rail-step {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 108px;
+    height: 278px;
+}
+
+.gm-rail-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 138px;
+    left: 100%;
+    width: 16px;
+    height: 2px;
+    background: var(--border);
+}
+
+.gm-rail-step.seg-open:not(:last-child)::after {
+    background: var(--primary);
+}
+
+/* Every card is the same plain white box by default - status is carried by
+   the small label/text colors, not by box color - EXCEPT the two explicitly
+   "marked" states, which get a full-fill treatment so they visually pop:
+   "Current Role" (navy fill, white text - mirrors the sidebar's resting
+   brand color) and "Your goal" (gold fill, navy text - mirrors the
+   sidebar's own active-item treatment: `--sidebar-active-bg`/`-text`).
+   `overflow:hidden` is a hard backstop: even if a future role name is
+   longer than today's longest, it clips cleanly at the rounded corner
+   instead of spilling past the box. */
+.gm-rail-card {
+    position: absolute;
+    left: 0;
     width: 100%;
+    height: 104px;
+    box-sizing: border-box;
+    padding: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 12px 8px 11px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    color: #fff;
-    min-height: 68px;
-    justify-content: center;
-    box-shadow: 0 3px 8px rgba(24, 33, 51, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    gap: 3px;
+    overflow: hidden;
 }
 
-.gm-onb-picon {
-    font-size: 17px;
-    line-height: 1;
+.gm-rail-card.above { top: 0; }
+.gm-rail-card.below { top: 174px; }
+
+.gm-rail-card.current {
+    background: var(--primary);
+    border-color: var(--primary);
 }
 
-.gm-onb-rname {
-    font-size: 12.5px;
+.gm-rail-card.goal {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.gm-rail-lvl {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
     font-weight: 700;
-    text-align: center;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.gm-rail-card.available .gm-rail-lvl { color: var(--success); }
+.gm-rail-card.top .gm-rail-lvl { color: var(--accent-deep); }
+.gm-rail-card.current .gm-rail-lvl { color: #fff; }
+.gm-rail-card.goal .gm-rail-lvl { color: var(--primary); }
+
+.gm-rail-role {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
     line-height: 1.25;
 }
 
-.gm-onb-tagline {
-    font-size: 10.5px;
+.gm-rail-card.dim .gm-rail-role { color: var(--text-muted); }
+.gm-rail-card.current .gm-rail-role { color: #fff; }
+.gm-rail-card.goal .gm-rail-role { color: var(--primary); }
+
+.gm-rail-status {
+    font-size: 9.5px;
+    margin-top: auto;
     color: var(--text-muted);
-    margin-top: 7px;
-    text-align: center;
 }
 
-.gm-onb-tagline.now {
-    color: var(--success);
+.gm-rail-card.available .gm-rail-status { color: var(--success); font-weight: 700; }
+.gm-rail-card.top .gm-rail-status { color: var(--accent-deep); font-weight: 700; }
+.gm-rail-card.current .gm-rail-status { color: #fff; font-weight: 700; }
+.gm-rail-card.goal .gm-rail-status { color: var(--primary); font-weight: 700; }
+
+.gm-rail-stem {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    background: var(--border);
+}
+
+.gm-rail-stem.above { top: 104px; height: 18px; }
+.gm-rail-stem.below { top: 156px; height: 18px; }
+.gm-rail-stem.available { background: var(--success); }
+.gm-rail-stem.goal { background: var(--accent); }
+.gm-rail-stem.top { background: var(--accent-deep); }
+.gm-rail-stem.current { background: var(--primary); }
+
+.gm-rail-node {
+    position: absolute;
+    left: 50%;
+    top: 122px;
+    width: 34px;
+    height: 34px;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
     font-weight: 700;
+    font-size: 12px;
+    background: #fff;
+    border: 2px solid var(--border);
+    color: var(--text-muted);
 }
 
-.gm-onb-lchip.dim .gm-onb-role-pill {
-    opacity: 0.6;
+.gm-rail-node.available {
+    background: var(--primary);
+    border: none;
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(28, 122, 77, 0.22);
 }
 
-.gm-onb-lchip.goal .gm-onb-role-pill {
-    box-shadow: 0 0 0 3px var(--accent), 0 4px 10px rgba(184, 132, 42, 0.3);
+.gm-rail-node.goal {
+    background: var(--accent);
+    border: none;
+    color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(255, 198, 0, 0.28);
 }
 
-/* Points from the CENTER of one rung toward the top of the NEXT rung - the
-   ladder only rises ~7px per step, so a shallow near-horizontal arrow
-   actually matches the staircase; the earlier steep diagonal didn't. */
-.gm-onb-arrow-r {
-    position: absolute;
-    right: -17px;
-    bottom: 44px;
-    color: #B7A8A4;
-    font-size: 15px;
-    transform: rotate(-12deg);
+.gm-rail-node.top {
+    border: 2px solid var(--accent-deep);
+    color: var(--accent-deep);
 }
 
-.gm-onb-crown {
-    position: absolute;
-    top: -16px;
-    font-size: 15px;
+/* Self-colored halo (navy ring on navy fill), not a contrasting green ring
+   like `.available` - that green specifically signals "this is the real
+   unlocked track," which "Current Role" (an illustrative preview mark) is
+   not, even when it's filled the same navy. */
+.gm-rail-node.current {
+    background: var(--primary);
+    border: none;
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(11, 28, 46, 0.18);
 }
 
 /* Step 3 "Your Journey" - unit list (vertical, a rail of connected steps -
@@ -995,6 +1223,15 @@ div[class*="st-key-chatbot_panel"] .stTextInput input {
 .gm-onb-node.active .gm-onb-lbl {
     color: var(--text);
     font-weight: 600;
+}
+
+.gm-onb-lbl-en {
+    font-size: 12.5px;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-top: 2px;
+    line-height: 1.35;
 }
 
 .gm-onb-node .gm-onb-lock {
@@ -1127,6 +1364,124 @@ div[class*="st-key-chatbot_panel"] .stTextInput input {
 .gm-onb-route .gm-onb-rarr {
     color: var(--text-muted);
     font-size: 15px;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Quick Link tiles (My Profile -> Overview)                               */
+/* ---------------------------------------------------------------------- */
+
+/* Each tile is a plain st.button() wrapped in its own st.container(key=...)
+   (see components/user_profile.py) so it gets a stable st-key-* wrapper to
+   target here - one solid brand color per tile, matching the reference
+   site's own "Pascasarjana / KMTETI / Asisten Praktikum" card pattern,
+   instead of four identical bordered-white buttons. */
+div[class*="st-key-quicklink_"] .stButton button {
+    height: 86px !important;
+    border-radius: var(--radius) !important;
+    border: none !important;
+    justify-content: flex-end !important;
+    text-align: left !important;
+    align-items: flex-start !important;
+    padding: 14px !important;
+    font-weight: 700 !important;
+    font-size: 13.5px !important;
+    box-shadow: none !important;
+}
+
+div[class*="st-key-quicklink_data_analytics"] .stButton button,
+div[class*="st-key-quicklink_test"] .stButton button {
+    background-color: var(--primary) !important;
+}
+div[class*="st-key-quicklink_data_analytics"] .stButton button p,
+div[class*="st-key-quicklink_data_analytics"] .stButton button span,
+div[class*="st-key-quicklink_test"] .stButton button p,
+div[class*="st-key-quicklink_test"] .stButton button span {
+    color: #fff !important;
+}
+
+div[class*="st-key-quicklink_engagement"] .stButton button {
+    background-color: var(--teal) !important;
+}
+div[class*="st-key-quicklink_engagement"] .stButton button p,
+div[class*="st-key-quicklink_engagement"] .stButton button span {
+    color: #fff !important;
+}
+
+div[class*="st-key-quicklink_learning_path"] .stButton button {
+    background-color: var(--accent) !important;
+}
+div[class*="st-key-quicklink_learning_path"] .stButton button p,
+div[class*="st-key-quicklink_learning_path"] .stButton button span {
+    color: var(--primary) !important;
+}
+
+/* Onboarding Step 2's "Current Role" / "Set as my goal" buttons - bold
+   label only, no other styling. */
+div[class*="st-key-onb_mark_current_wrap"] .stButton button,
+div[class*="st-key-onb_mark_goal_wrap"] .stButton button {
+    font-weight: 700 !important;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Unit Kompetensi chips (My Profile -> Overview)                          */
+/* ---------------------------------------------------------------------- */
+
+.gm-unit-chips-label {
+    font-size: 12.5px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 22px 0 10px;
+}
+
+.gm-unit-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.gm-unit-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 14px 6px 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    max-width: 260px;
+}
+
+.gm-unit-chip .gm-code {
+    display: inline-block;
+    flex: none;
+    background: var(--primary);
+    color: var(--accent);
+    font-size: 11px;
+    padding: 3px 7px;
+    border-radius: 6px;
+}
+
+/* Mastered - green, same semantic as gm-badge-success elsewhere. */
+.gm-unit-chip.done .gm-code {
+    background: var(--success);
+    color: #fff;
+}
+
+/* Remedial - gold, same semantic as the "Remedial" ACCENT color used in
+   mastery_dashboard.py's charts (STATUS_COLORS). */
+.gm-unit-chip.remedial .gm-code {
+    background: var(--accent);
+    color: var(--primary);
+}
+
+.gm-unit-chip .gm-unit-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* ---------------------------------------------------------------------- */

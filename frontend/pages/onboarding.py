@@ -26,7 +26,7 @@ from utils.theme import render_brand
 from utils.onboarding_api import complete_onboarding
 from utils.materials_api import get_all_units
 from data.skkni_ladder import (
-    LEVELS, LEVEL_ICONS, LEVEL_COLORS, ACTIVE_LEVEL, ACTIVE_ROLE, get_roles_for_level,
+    LEVELS, ACTIVE_LEVEL, ACTIVE_ROLE, get_roles_for_level,
 )
 
 TOTAL_STEPS = 5
@@ -44,12 +44,40 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# English gloss for each of the 6 real SKKNI units under Assistant Web
+# Developer (step 3's unit list) - titles themselves come from Neo4j in
+# Bahasa Indonesia (the source standard's own language), so this is a
+# static supplementary translation, keyed by the short "NNN.NN" suffix of
+# unit_code the same way components/user_profile.py's chip labels are, not
+# by the full code (whose prefix format isn't guaranteed stable).
+UNIT_TITLE_EN = {
+    "005.02": "Implementing the user interface",
+    "010.01": "Running text-, graphics-, and multimedia-based programming language commands",
+    "015.01": "Organizing functions, files, and other programming resources neatly",
+    "016.01": "Writing code to guidelines and best practices",
+    "017.02": "Implementing structured programming",
+    "019.02": "Using pre-existing libraries or components",
+}
+
+
+def _unit_title_en(unit_code: str) -> str:
+    short_code = ".".join(unit_code.split(".")[-2:]) if unit_code.count(".") >= 2 else unit_code
+    return UNIT_TITLE_EN.get(short_code, "")
+
+
 if "onboarding_step" not in st.session_state:
     st.session_state.onboarding_step = 1
 if "onboarding_target_level" not in st.session_state:
     st.session_state.onboarding_target_level = None
 if "onboarding_target_role" not in st.session_state:
     st.session_state.onboarding_target_role = None
+# Step 2's "Current Role" mark (see _render_step_path) - an illustrative
+# "where are you now" preview, separate from ACTIVE_LEVEL; None until the
+# user explicitly marks one.
+if "onboarding_current_level" not in st.session_state:
+    st.session_state.onboarding_current_level = None
+if "onboarding_current_role" not in st.session_state:
+    st.session_state.onboarding_current_role = None
 
 
 def _dots(on: int):
@@ -101,31 +129,52 @@ def _render_step_path():
     _dots(2)
     st.markdown("### Where do you want to go?")
     st.write(
-        f"Pick a level to preview the roles there. Wherever you aim, your ladder "
-        f"always starts at the one track open today — **{ACTIVE_ROLE}**."
+        f"Browse a level below, then mark where you are now and where you "
+        f"want to go - nothing is set until you tap one of the two buttons. "
+        f"Wherever you aim, your real progress always starts at the one "
+        f"track open today — **{ACTIVE_ROLE}**."
     )
 
-    default_level = st.session_state.onboarding_target_level or (ACTIVE_LEVEL + 1)
+    # ONE row browses levels/roles - it's just a cursor, not a selection by
+    # itself. "Current Role" and "Set as my goal" are the only things that
+    # actually mark anything, so nothing on the ladder changes just from
+    # moving this row around.
+    browse_level = st.session_state.get("onb_browse_level", ACTIVE_LEVEL)
     cols = st.columns(len(LEVELS))
     for col, level in zip(cols, LEVELS):
         with col:
-            is_selected = st.session_state.get("onb_selected_level", default_level) == level
             if st.button(
-                f"L{level}", key=f"onb_lvl_{level}",
-                type="primary" if is_selected else "secondary",
+                f"L{level}", key=f"onb_browse_{level}",
+                type="primary" if browse_level == level else "secondary",
                 use_container_width=True,
             ):
-                st.session_state.onb_selected_level = level
+                st.session_state.onb_browse_level = level
                 st.rerun()
 
-    selected_level = st.session_state.get("onb_selected_level", default_level)
-    roles = get_roles_for_level(selected_level)
-    selected_role = st.radio(
-        "Roles at this level", roles, key=f"onb_role_radio_{selected_level}",
+    roles = get_roles_for_level(browse_level)
+    browse_role = st.radio(
+        "Roles at this level", roles, key=f"onb_role_radio_{browse_level}",
         label_visibility="collapsed",
     )
 
-    _render_ladder_preview(selected_level, selected_role)
+    m1, m2 = st.columns(2)
+    with m1:
+        with st.container(key="onb_mark_current_wrap"):
+            if st.button("Current Role", use_container_width=True, key="onb_mark_current"):
+                st.session_state.onboarding_current_level = browse_level
+                st.session_state.onboarding_current_role = browse_role
+                st.rerun()
+    with m2:
+        with st.container(key="onb_mark_goal_wrap"):
+            if st.button("Set as my goal", use_container_width=True, key="onb_mark_goal"):
+                st.session_state.onboarding_target_level = browse_level
+                st.session_state.onboarding_target_role = browse_role
+                st.rerun()
+
+    current_level = st.session_state.onboarding_current_level or ACTIVE_LEVEL
+    goal_level = st.session_state.onboarding_target_level
+    goal_role = st.session_state.onboarding_target_role
+    _render_ladder_preview(current_level, goal_level, goal_role)
 
     st.write("")
     c1, c2 = st.columns([1, 3])
@@ -134,57 +183,84 @@ def _render_step_path():
             st.session_state.onboarding_step = 1
             st.rerun()
     with c2:
-        if st.button("Set as my goal", type="primary", use_container_width=True, key="onb_p_continue"):
-            st.session_state.onboarding_target_level = selected_level
-            st.session_state.onboarding_target_role = selected_role
+        if st.button("Continue", type="primary", use_container_width=True, key="onb_p_continue"):
             st.session_state.onboarding_step = 3
             st.rerun()
     if st.button("Skip — decide later", use_container_width=True, key="onb_p_skip"):
         _finish_onboarding("profile")
 
 
-def _render_ladder_preview(goal_level: int, goal_role: str):
-    """The rising-staircase career ladder (levels 2-9), goal level ringed in
-    gold, every level but ACTIVE_LEVEL tagged as a locked preview."""
-    chips = []
+def _render_ladder_preview(current_level: int, goal_level: int, goal_role: str):
+    """The career ladder as a connected rail (levels 2-9): one continuous
+    line - solid where the path is already open (up to ACTIVE_LEVEL), muted
+    where it's still locked - with role cards zigzagging above/below their
+    level's node so longer titles get real room instead of a cramped
+    staircase of pills. Status (locked / available / goal / current-preview /
+    top) is carried entirely by color and type, no per-level icon.
+
+    `current_level` is an illustrative "where are you now" preview, separate
+    from ACTIVE_LEVEL: picking a different one only adds a "You are here"
+    marker on the ladder, it never changes what's actually open - only
+    ACTIVE_LEVEL has real SKKNI units behind it today (see skkni_ladder.py).
+    """
+    steps = []
     for i, level in enumerate(LEVELS):
         roles_here = get_roles_for_level(level)
         role_label = goal_role if level == goal_level and goal_role in roles_here else roles_here[0]
-        classes = ["gm-onb-lchip"]
-        if level == ACTIVE_LEVEL:
-            tagline = '<span class="gm-onb-tagline now">✓ available now</span>'
-        elif level == goal_level:
-            classes.append("goal")
-            tagline = '<span class="gm-onb-tagline">🎯 your goal</span>'
-        else:
-            classes.append("dim")
-            tagline = '<span class="gm-onb-tagline">🔒 coming soon</span>'
-            if level == LEVELS[-1]:
-                tagline = '<span class="gm-onb-tagline">SKKNI top level</span>'
 
-        crown = '<span class="gm-onb-crown">👑</span>' if level == LEVELS[-1] else ""
-        arrow = '<span class="gm-onb-arrow-r">→</span>' if level != LEVELS[-1] else ""
-        offset = -7 * i
-        # Built as ONE unbroken line (no blank lines mid-block) - Streamlit's
-        # markdown renderer only treats a run of HTML as raw markup for as
-        # long as it sees no blank line; a blank line (e.g. from an empty
-        # `crown`/`arrow` placeholder sitting alone on its own source line)
-        # silently ends the HTML block early and the rest renders as escaped
-        # text instead of markup.
-        chips.append(
-            f'<div class="{" ".join(classes)}" style="transform:translateY({offset}px)">'
-            f'{crown}'
-            f'<div class="gm-onb-lv-badge">LVL {level}</div>'
-            f'<div class="gm-onb-role-pill" style="background:{LEVEL_COLORS[level]};">'
-            f'<span class="gm-onb-picon">{LEVEL_ICONS[level]}</span>'
-            f'<span class="gm-onb-rname">{role_label}</span>'
-            f'</div>'
-            f'{tagline}'
-            f'{arrow}'
+        # Priority: goal > real active > preview-current > top > locked.
+        # goal_level is checked FIRST because ACTIVE_LEVEL is itself
+        # selectable as a goal (just not the default pick), and it must
+        # still show a visible change when picked - otherwise selecting it
+        # looks like the click did nothing. preview-current only shows its
+        # own marker when it differs from ACTIVE_LEVEL, so the common case
+        # (previewing from the real active level) looks exactly as before.
+        if level == goal_level:
+            status_class, status_text = "goal", "Your goal"
+        elif level == ACTIVE_LEVEL:
+            status_class, status_text = "available", "Available now"
+        elif level == current_level:
+            status_class, status_text = "current", "You are here"
+        elif level == LEVELS[-1]:
+            status_class, status_text = "top", "Top of ladder"
+        else:
+            status_class, status_text = "dim", "Locked"
+
+        next_level_open = i + 1 < len(LEVELS) and LEVELS[i + 1] <= ACTIVE_LEVEL
+        step_class = "gm-rail-step seg-open" if next_level_open else "gm-rail-step"
+        card_side = "above" if i % 2 == 0 else "below"
+        card = (
+            f'<div class="gm-rail-card {card_side} {status_class}">'
+            f'<div class="gm-rail-lvl">LVL {level}</div>'
+            f'<div class="gm-rail-role">{role_label}</div>'
+            f'<div class="gm-rail-status">{status_text}</div>'
             f'</div>'
         )
+        stem = f'<div class="gm-rail-stem {card_side} {status_class}"></div>'
+        node = f'<div class="gm-rail-node {status_class}">{level}</div>'
+        # Built as ONE unbroken line (no blank lines mid-block) - Streamlit's
+        # markdown renderer only treats a run of HTML as raw markup for as
+        # long as it sees no blank line.
+        steps.append(f'<div class="{step_class}">{card}{stem}{node}</div>')
+
+    # Only shown when it differs from ACTIVE_LEVEL - in the common default
+    # case (previewing from the real active level) there's no separate
+    # "current" marker anywhere on the ladder, so the legend entry for it
+    # would be pointing at nothing.
+    current_legend = (
+        '<span><i class="current"></i>You are here</span>'
+        if current_level != ACTIVE_LEVEL else ""
+    )
     st.markdown(
-        f'<div class="gm-onb-ladder-wrap"><div class="gm-onb-ladder">{"".join(chips)}</div></div>',
+        '<div class="gm-rail-wrap">'
+        '<div class="gm-rail-legend">'
+        '<span><i class="open"></i>Open path</span>'
+        '<span><i class="goal"></i>Your goal</span>'
+        f'{current_legend}'
+        '<span><i class="locked"></i>Locked</span>'
+        '</div>'
+        f'<div class="gm-rail-row">{"".join(steps)}</div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
@@ -206,13 +282,19 @@ def _render_step_journey():
             active = i == 0
             classes = "gm-onb-node active" if active else "gm-onb-node"
             lock = "" if active else '<div class="gm-onb-lock">🔒</div>'
-            title = unit.get("title") or unit.get("unit_code", "")
+            unit_code = unit.get("unit_code", "")
+            title = unit.get("title") or unit_code
+            title_en = _unit_title_en(unit_code)
+            subtitle = f'<div class="gm-onb-lbl-en">{title_en}</div>' if title_en else ""
             # Single unbroken line - see the comment in _render_ladder_preview
             # on why a blank line mid-block breaks Streamlit's HTML rendering.
             nodes.append(
                 f'<div class="{classes}">'
                 f'<div class="gm-onb-circ">{i + 1}</div>'
-                f'<div class="gm-onb-lbl">{title}</div>'
+                f'<div class="gm-onb-lbl">'
+                f'<div class="gm-onb-lbl-id">{title}</div>'
+                f'{subtitle}'
+                f'</div>'
                 f'{lock}'
                 f'</div>'
             )
@@ -233,9 +315,9 @@ def _render_step_journey():
             <div class="gm-onb-lstep"><div class="gm-onb-ic">🏁</div><div class="gm-onb-lbl">Post-Test</div></div>
         </div>
         <div class="gm-onb-legend">
-            <span><i style="background:#9AA6B6"></i>Locked</span>
-            <span><i style="background:#D5A23A"></i>In progress</span>
-            <span><i style="background:#008000"></i>Mastered</span>
+            <span><i style="background:var(--text-muted)"></i>Locked</span>
+            <span><i style="background:var(--accent)"></i>In progress</span>
+            <span><i style="background:var(--success)"></i>Mastered</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -260,12 +342,21 @@ def _render_step_building():
 
     headline = f"Building your path to<br/>{target_role}…" if target_role else "Building your first milestone…"
 
-    if target_role:
+    if target_role and target_level != ACTIVE_LEVEL:
         route_html = f"""
         <div class="gm-onb-route">
             <div class="gm-onb-rnode"><div class="gm-onb-ic2">🖥️</div>{ACTIVE_ROLE}<br/><small>LVL {ACTIVE_LEVEL} · start</small></div>
             <div class="gm-onb-rarr">→</div>
             <div class="gm-onb-rnode goal"><div class="gm-onb-ic2">📈</div>{target_role}<br/><small>LVL {target_level} · goal</small></div>
+        </div>
+        """
+    elif target_role:
+        # Goal picked == the already-open starting level (Step 2 lets you
+        # select ACTIVE_LEVEL too) - a start->goal arrow between two
+        # identical nodes would just look broken, so show one node instead.
+        route_html = f"""
+        <div class="gm-onb-route">
+            <div class="gm-onb-rnode goal"><div class="gm-onb-ic2">🖥️</div>{ACTIVE_ROLE}<br/><small>LVL {ACTIVE_LEVEL} · your goal</small></div>
         </div>
         """
     else:
@@ -276,28 +367,28 @@ def _render_step_building():
         """
 
     html = f"""
-    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+    <div style="font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
       <style>
         .ring-wrap {{ display:flex; flex-direction:column; align-items:center; }}
         .ring {{
           --p:0; width:132px; height:132px; border-radius:50%;
-          background:conic-gradient(#008000 calc(var(--p)*1%), #EAF0F5 0);
+          background:conic-gradient(#1C7A4D calc(var(--p)*1%), #EFEFEA 0);
           display:flex; align-items:center; justify-content:center; margin-bottom:18px; position:relative;
         }}
-        .ring::after {{ content:""; position:absolute; inset:12px; border-radius:50%; background:#fff; box-shadow:inset 0 0 0 1px #EAF0F5; }}
-        .ring-pct {{ position:relative; z-index:1; font-size:28px; font-weight:800; color:#182133; display:flex; align-items:baseline; }}
-        .ring-pct .sign {{ font-size:14px; font-weight:700; color:#63748C; margin-left:2px; }}
-        .build-h {{ font-size:16.5px; font-weight:700; text-align:center; margin:0 0 16px; color:#182133; line-height:1.35; }}
-        .build-line {{ font-size:12.5px; color:#63748C; display:flex; align-items:center; gap:8px; padding:6px 0; opacity:0; transform:translateY(6px); }}
-        .build-line .chk {{ color:#008000; font-weight:700; flex:none; width:14px; }}
+        .ring::after {{ content:""; position:absolute; inset:12px; border-radius:50%; background:#fff; box-shadow:inset 0 0 0 1px #EFEFEA; }}
+        .ring-pct {{ position:relative; z-index:1; font-size:28px; font-weight:800; color:#1C2127; display:flex; align-items:baseline; }}
+        .ring-pct .sign {{ font-size:14px; font-weight:700; color:#6B6F76; margin-left:2px; }}
+        .build-h {{ font-size:16.5px; font-weight:700; text-align:center; margin:0 0 16px; color:#1C2127; line-height:1.35; }}
+        .build-line {{ font-size:12.5px; color:#6B6F76; display:flex; align-items:center; gap:8px; padding:6px 0; opacity:0; transform:translateY(6px); }}
+        .build-line .chk {{ color:#1C7A4D; font-weight:700; flex:none; width:14px; }}
         .build-line.play {{ animation:mb-in .5s ease forwards; }}
         @keyframes mb-in {{ to {{ opacity:1; transform:translateY(0); }} }}
-        .gm-onb-route {{ display:flex; align-items:center; justify-content:center; gap:12px; border-top:1px dashed #DCE3E8; padding-top:14px; margin-top:2px; }}
-        .gm-onb-rnode {{ display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:#182133; text-align:center; line-height:1.2; }}
-        .gm-onb-ic2 {{ width:34px; height:34px; border-radius:10px; background:#EAF0F5; display:flex; align-items:center; justify-content:center; font-size:15px; }}
-        .gm-onb-rnode.goal .gm-onb-ic2 {{ background:#FBF3E1; box-shadow:0 0 0 2px #D5A23A; }}
-        .gm-onb-rnode small {{ font-weight:600; color:#9AA6B6; font-size:9px; }}
-        .gm-onb-rarr {{ color:#9AA6B6; font-size:14px; }}
+        .gm-onb-route {{ display:flex; align-items:center; justify-content:center; gap:12px; border-top:1px dashed #E3E3DE; padding-top:14px; margin-top:2px; }}
+        .gm-onb-rnode {{ display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:#1C2127; text-align:center; line-height:1.2; }}
+        .gm-onb-ic2 {{ width:34px; height:34px; border-radius:10px; background:#EFEFEA; display:flex; align-items:center; justify-content:center; font-size:15px; }}
+        .gm-onb-rnode.goal .gm-onb-ic2 {{ background:#FFF4CC; box-shadow:0 0 0 2px #FFC600; }}
+        .gm-onb-rnode small {{ font-weight:600; color:#959A9F; font-size:9px; }}
+        .gm-onb-rarr {{ color:#959A9F; font-size:14px; }}
       </style>
       <div class="ring-wrap">
         <div class="ring" id="ring"><div class="ring-pct"><span id="pct">0</span><span class="sign">%</span></div></div>

@@ -44,7 +44,7 @@ STATUS_COLORS = {
 CHART_LAYOUT_DEFAULTS = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="-apple-system, Segoe UI, Roboto, sans-serif", color=TEXT),
+    font=dict(family="Montserrat, -apple-system, Segoe UI, Roboto, sans-serif", color=TEXT),
 )
 
 # Matches services/mastery_inference.py::BLOOM_LEVELS - kept as a small local

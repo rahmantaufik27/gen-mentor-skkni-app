@@ -7,15 +7,17 @@ page renders a consistent look instead of duplicating markup or CSS.
 import streamlit as st
 
 # Brand palette - must stay in sync with the CSS variables in assets/css/main.css
-PRIMARY = "#1B274C"
-SECONDARY = "#63748C"
-ACCENT = "#D5A23A"
-SUCCESS = "#008000"
-BACKGROUND = "#F6F8FA"
+# Direction: sarjana.jteti.ugm.ac.id (gold/navy/teal, Montserrat) - see the
+# "GAMASKILL Redesign Study" artifact for the before/after this came from.
+PRIMARY = "#0B1C2E"
+SECONDARY = "#6B6F76"
+ACCENT = "#FFC600"
+SUCCESS = "#1C7A4D"
+BACKGROUND = "#F6F6F3"
 CARD = "#FFFFFF"
-SOFT = "#EAF0F5"
-TEXT = "#182133"
-BORDER = "#DCE3E8"
+SOFT = "#EFEFEA"
+TEXT = "#1C2127"
+BORDER = "#E3E3DE"
 
 BRAND_NAME = "GAMASKILL"
 BRAND_TAGLINE = "Gateway for Adaptive Mastery and Advancement of Skills"
