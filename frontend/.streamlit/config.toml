@@ -6,8 +6,11 @@ showPagesInSidebar = false
 level = "info"
 
 [theme]
-primaryColor = "#FF6B6B"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F0F2F6"
-textColor = "#262730"
+# Mirrors the design tokens in assets/css/main.css / utils/theme.py - this
+# is what native widgets main.css doesn't restyle (progress bar, radio/
+# checkbox selection dot, slider) actually render with.
+primaryColor = "#0B1C2E"
+backgroundColor = "#F6F6F3"
+secondaryBackgroundColor = "#EFEFEA"
+textColor = "#1C2127"
 font = "sans serif"

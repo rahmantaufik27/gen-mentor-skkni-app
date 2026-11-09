@@ -24,8 +24,15 @@ from datetime import datetime
 import streamlit as st
 
 from utils.profile_api import get_profile, update_profile, change_password, upload_profile_photo, profile_photo_url
+from utils.materials_api import get_all_units
+from utils.quiz_api import get_mastery_summary
 from utils.theme import avatar_initials
 from components.mastery_dashboard import render_nudge_banner
+
+# The one SKKNI role actually built today (see data/skkni_ladder.py::ACTIVE_ROLE
+# in the onboarding wizard - kept as a plain string here rather than a shared
+# import since this is display-only, not used for any gating logic).
+ACTIVE_ROLE_LABEL = "Assistant Web Developer"
 
 # Shown collapsed on the Overview tab, mainly for a first-time/returning
 # learner who wants a refresher on what the platform actually does -
@@ -87,9 +94,61 @@ def _render_overview_tab():
     ]
     for col, (label, page_key) in zip(st.columns(len(links)), links):
         with col:
-            if st.button(label, key=f"overview_link_{page_key}", use_container_width=True):
-                st.session_state.current_page = page_key
-                st.rerun()
+            # Wrapped in its own keyed container so main.css can give each
+            # tile its own solid brand color (div[class*="st-key-quicklink_*"])
+            # instead of four identical bordered-white buttons.
+            with st.container(key=f"quicklink_{page_key}"):
+                if st.button(label, key=f"overview_link_{page_key}", use_container_width=True):
+                    st.session_state.current_page = page_key
+                    st.rerun()
+
+    _render_unit_chips()
+
+
+def _render_unit_chips():
+    """The 6 real SKKNI units under today's one active track, as status-
+    colored chips - green once Mastered, gold while still Remedial, neutral
+    before the learner's first Test attempt. Units come from Neo4j (same
+    source as pages/onboarding.py's Step 3); status comes from the mastery
+    summary (same source as components/mastery_dashboard.py)."""
+    units_result = get_all_units()
+    units = units_result.get("units", []) if units_result.get("success") else []
+    if not units:
+        return
+
+    mastery_result = get_mastery_summary()
+    status_by_unit = {}
+    if mastery_result.get("success") and mastery_result.get("has_attempts"):
+        status_by_unit = {
+            u.get("unit_code"): u.get("mastery_status") for u in mastery_result.get("units", [])
+        }
+
+    st.markdown(
+        f'<div class="gm-unit-chips-label">Unit Kompetensi — {ACTIVE_ROLE_LABEL}</div>',
+        unsafe_allow_html=True,
+    )
+
+    chips = []
+    for unit in units:
+        code = unit.get("unit_code", "")
+        title = unit.get("title") or code
+        short_code = ".".join(code.split(".")[-2:]) if code.count(".") >= 2 else code
+        status = status_by_unit.get(code)
+        css_class = "gm-unit-chip"
+        if status == "Mastered":
+            css_class += " done"
+        elif status == "Remedial":
+            css_class += " remedial"
+        # Single unbroken line - a blank line mid-block would end Streamlit's
+        # raw-HTML rendering early (same issue as pages/onboarding.py's
+        # ladder/road builders - see the comment there for why).
+        chips.append(
+            f'<div class="{css_class}" title="{title}">'
+            f'<span class="gm-code">{short_code}</span>'
+            f'<span class="gm-unit-title">{title}</span>'
+            f'</div>'
+        )
+    st.markdown(f'<div class="gm-unit-chips">{"".join(chips)}</div>', unsafe_allow_html=True)
 
 
 def render_user_profile():
