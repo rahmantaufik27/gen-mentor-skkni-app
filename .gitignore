@@ -25,3 +25,4 @@ backend/logs/
 AGENTS.md
 CLAUDE.md
 opencode.jsonc
+.claude/

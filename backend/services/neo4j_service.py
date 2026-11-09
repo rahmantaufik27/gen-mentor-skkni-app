@@ -360,7 +360,7 @@ class Neo4jService:
             return []
 
         mastery_by_unit = {record.get("unit_code"): record for record in mastery_records}
-        records = self._query_fix-knowledge-question-base_questions(
+        records = self._query_completeknowledgebase_questions(
             list(mastery_by_unit), purpose="recommend_questions"
         )
         for record in records:

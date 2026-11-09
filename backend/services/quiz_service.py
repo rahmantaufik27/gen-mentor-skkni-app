@@ -80,6 +80,11 @@ class QuizService:
             # Validate dataset
             validation = self.generator.validate_dataset()
             if not validation["valid"]:
+                self.question_loader.questions_cache = None
+                self.generator = QuizGenerator(self.question_loader)
+                validation = self.generator.validate_dataset()
+
+            if not validation["valid"]:
                 return {
                     "success": False,
                     "error": f"Dataset insufficient: {validation['units_available']} units, need 6"
