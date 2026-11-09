@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where python *)",
+      "Bash(python -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('e:/gen-mentor-app-fix/frontend/components/reading_materials.py', encoding='utf-8'\\).read\\(\\)\\)\")",
+      "Bash(powershell -NoProfile -Command \"Stop-Process -Id 17176 -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500; Get-Process -Id 17176 -ErrorAction SilentlyContinue\")",
+      "Bash(echo \"---exit: $?\")",
+      "WebSearch"
+    ]
+  }
+}

@@ -10,7 +10,7 @@ This connects to two EXISTING knowledge graphs. The configured database
       -[:HAS_CONCEPT]->(:Concept {text})            <- reading materials
            -[:HAS_LEVEL]->(:Level {name})
 
-The "completeknowledgebase" database contains the canonical question bank,
+The "fix-knowledge-question-base" database contains the canonical question bank,
 read through CompetencyUnit/ElementCompetency/PerformanceCriterion and
 EvaluationQuestion/AnswerOption/CorrectAnswer nodes. This module does NOT
 create parallel question nodes; it reads that graph directly. It also adds
@@ -235,7 +235,7 @@ class Neo4jService:
     def _query_completeknowledgebase_questions(
         self, unit_codes: Optional[List[str]] = None, purpose: str = "list_test_questions"
     ) -> List[Dict]:
-        """Read question records and answer data from completeknowledgebase."""
+        """Read question records and answer data from fix-knowledge-question-base."""
         return self._run_query(
             """
             MATCH (cu:CompetencyUnit)-[:HAS_ELEMENT]->(:ElementCompetency)
@@ -257,7 +257,7 @@ class Neo4jService:
             """,
             {"unit_codes": unit_codes},
             purpose=purpose,
-            database="completeknowledgebase",
+            database="fix-knowledge-question-base",
         )
 
     def get_all_test_questions(self) -> List[Dict]:
@@ -265,7 +265,7 @@ class Neo4jService:
         return self._query_completeknowledgebase_questions()
 
     def get_existing_learning_materials(self, unit_code: str) -> List[str]:
-        """Reference materials in completeknowledgebase for one competency unit."""
+        """Reference materials in fix-knowledge-question-base for one competency unit."""
         records = self._run_query(
             """
             MATCH (cu:CompetencyUnit {kode: $kode})
@@ -278,7 +278,7 @@ class Neo4jService:
             """,
             {"kode": unit_code},
             purpose="generate_learning_material_examples",
-            database="completeknowledgebase",
+            database="fix-knowledge-question-base",
         )
         return [record["text"] for record in records if record.get("text")]
 
@@ -360,7 +360,7 @@ class Neo4jService:
             return []
 
         mastery_by_unit = {record.get("unit_code"): record for record in mastery_records}
-        records = self._query_completeknowledgebase_questions(
+        records = self._query_fix-knowledge-question-base_questions(
             list(mastery_by_unit), purpose="recommend_questions"
         )
         for record in records:

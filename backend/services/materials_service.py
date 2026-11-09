@@ -93,6 +93,7 @@ class MaterialsService:
             <materi baru>"""
         print("unit_code:", unit_code)
         print("competency name:", competency_name)
+        print("test")
 
         provider = get_llm_provider()
         content = provider.chat([{"role": "user", "content": prompt}])

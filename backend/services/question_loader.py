@@ -9,7 +9,7 @@ from services.neo4j_service import Neo4jService, get_neo4j_service
 
 
 class QuestionLoader:
-    """Load and normalize questions from the completeknowledgebase Neo4j database."""
+    """Load and normalize questions from the fix-knowledge-question-base Neo4j database."""
 
     def __init__(self, data_dir: Optional[str] = None, neo4j_service: Optional[Neo4jService] = None):
         """
