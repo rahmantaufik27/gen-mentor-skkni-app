@@ -208,7 +208,12 @@ class QuizService:
             else:
                 score = 0
             
-            # Record answer
+            # Upsert by question_index (not a plain append) so resubmitting
+            # an already-answered question - e.g. the learner revisits it
+            # via the Question Navigator and changes their choice - replaces
+            # its old entry instead of adding a second one, which would
+            # otherwise double-count it in correct_answers/total_score.
+            session["answers"] = [a for a in session["answers"] if a["question_index"] != question_index]
             session["answers"].append({
                 "question_index": question_index,
                 "selected_answer": selected_answer.upper(),
@@ -284,10 +289,15 @@ class QuizService:
                 )
             )
             
-            # Insert per-question details
-            for idx, (question, unit_code, answer) in enumerate(
-                zip(questions, unit_codes, answers)
-            ):
+            # Insert per-question details. Answers are looked up by their
+            # question_index, never by position: with Skip, jump-to-question
+            # and changed answers, session["answers"] is in submission order
+            # and may be shorter than the question list. A question with no
+            # answer (skipped, or never reached before "Submit All Answers")
+            # is stored as unanswered and incorrect.
+            answers_by_index = {a["question_index"]: a for a in answers}
+            for idx, (question, unit_code) in enumerate(zip(questions, unit_codes)):
+                answer = answers_by_index.get(idx, {"selected_answer": None, "is_correct": False})
                 # Get correct answer
                 correct_choice_id = None
                 for choice in question.choices:

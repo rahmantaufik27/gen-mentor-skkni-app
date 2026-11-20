@@ -46,6 +46,112 @@ def inject_theme():
         pass
 
 
+def confirm_exam_action(title: str, message: str, confirm_label: str, on_confirm):
+    """Pop-up confirmation for an exam-ending action (Exit Exam / Submit
+    All Answers). `on_confirm` runs only after the learner confirms; it
+    returns None on success or an error message to show inside the dialog."""
+
+    @st.dialog(title)
+    def _dialog():
+        st.write(message)
+        cancel_col, confirm_col = st.columns(2)
+        with cancel_col:
+            if st.button("Cancel", use_container_width=True, key="gm_exam_confirm_cancel"):
+                st.rerun()
+        with confirm_col:
+            if st.button(confirm_label, use_container_width=True, type="primary", key="gm_exam_confirm_ok"):
+                error = on_confirm()
+                if error:
+                    st.error(error)
+                else:
+                    st.rerun()
+
+    _dialog()
+
+
+def _select_exam_question(view_state_key: str, index: int):
+    st.session_state[view_state_key] = index
+
+
+def render_exam_navigator(
+    total_questions: int, status: dict, frontier: int, current: int, key_prefix: str, view_state_key: str
+):
+    """Right-hand, CLICKABLE "Question Navigator" status grid for the
+    exam-fullscreen UI, shared by Practice (components/practice.py) and
+    Test (pages/test.py) so both stay visually/behaviorally identical.
+
+    `status` is {0-based index: "answered" | "skipped"}; `frontier` is the
+    1-based furthest question number ever reached by forward (Submit/Skip)
+    progression; `current` is the 1-based question on screen right now (it
+    gets the gold ring). A cell is clickable only up to the frontier
+    (jumping ahead to a never-opened question isn't allowed); clicking an
+    answered or skipped cell reopens it so the learner can answer or
+    change their answer (submit_answer upserts by index server-side).
+
+    A click writes the 0-based index into st.session_state[view_state_key]
+    through an on_click callback, which runs before the rerun - so jumping
+    costs one script run, not a run plus an st.rerun().
+    """
+
+    # Exact class selectors (".st-key-x"), never substring ones
+    # ('[class*="navbtn_1"]' also matches navbtn_10..19), and the class is
+    # tripled so these outrank the app-wide
+    # '.stButton button[kind^="secondary"]' !important rules in main.css.
+    palette = {
+        "answered": ("var(--success)", "#fff"),
+        "skipped": ("var(--warning)", "#fff"),
+        "unopened": ("var(--soft)", "var(--text-muted)"),
+    }
+    groups = {state: [] for state in palette}
+    for i in range(1, total_questions + 1):
+        item_status = status.get(i - 1)
+        state = item_status if item_status in ("answered", "skipped") else "unopened"
+        groups[state].append(f".st-key-{key_prefix}_navbtn_{i}" * 3)
+
+    rules = []
+    for state, (bg, fg) in palette.items():
+        classes = groups[state]
+        if not classes:
+            continue
+        buttons = ", ".join(f"{c} button" for c in classes)
+        labels = ", ".join(f"{c} button {tag}" for c in classes for tag in ("p", "span", "div"))
+        rules.append(
+            f"{buttons} {{ background-color: {bg} !important; border: none !important; "
+            f"color: {fg} !important; opacity: 1 !important; }}"
+        )
+        rules.append(f"{labels} {{ color: {fg} !important; }}")
+    current_cls = f".st-key-{key_prefix}_navbtn_{current}" * 3
+    rules.append(
+        f"{current_cls} button {{ outline: 3px solid var(--accent) !important; outline-offset: 2px; }}"
+    )
+    st.markdown(f"<style>{' '.join(rules)}</style>", unsafe_allow_html=True)
+
+    with st.container(key=f"{key_prefix}_gm_exam_navigator"):
+        st.markdown('<div class="gm-exam-nav-title">Question Navigator</div>', unsafe_allow_html=True)
+
+        for row_start in range(1, total_questions + 1, 6):
+            row_numbers = range(row_start, min(row_start + 6, total_questions + 1))
+            cols = st.columns(6)
+            for col, i in zip(cols, row_numbers):
+                with col:
+                    st.button(
+                        str(i), key=f"{key_prefix}_navbtn_{i}", disabled=(i > frontier),
+                        use_container_width=True,
+                        on_click=_select_exam_question, args=(view_state_key, i - 1),
+                    )
+
+        st.markdown(
+            """
+            <div class="gm-exam-legend">
+                <div class="gm-exam-legend-row"><span class="gm-exam-legend-swatch answered"></span><b>Green</b>&nbsp;— answered</div>
+                <div class="gm-exam-legend-row"><span class="gm-exam-legend-swatch skipped"></span><b>Orange</b>&nbsp;— skipped</div>
+                <div class="gm-exam-legend-row"><span class="gm-exam-legend-swatch unopened"></span><b>Gray</b>&nbsp;— not opened</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
 def avatar_initials(name: str) -> str:
     """Return 1-2 letter initials for an avatar badge."""
     if not name:

@@ -1,0 +1,14 @@
+{
+  "n_total": 44,
+  "n_success": 44,
+  "n_failed": 0,
+  "pct_indonesian": 100.0,
+  "pct_scaffolding_leak_free": 100.0,
+  "mean_bold_headings_per_material": 5.591,
+  "mean_reference_utilization": 0.508,
+  "median_reference_utilization": 0.5,
+  "mean_generation_time_s": 121.664,
+  "median_generation_time_s": 120.7,
+  "mean_word_count": 960.477,
+  "mean_code_blocks_per_material": 2.682
+}

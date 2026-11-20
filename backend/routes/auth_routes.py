@@ -10,7 +10,7 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 def init_auth_routes(app):
     """
     Initialize authentication routes.
-    
+
     Args:
         app: Flask application instance
     """
@@ -18,21 +18,39 @@ def init_auth_routes(app):
     def register():
         """User registration endpoint."""
         return AuthController.register()
-    
+
     @auth_bp.route("/login", methods=["POST"])
     def login():
         """User login endpoint."""
         return AuthController.login()
-    
+
     @auth_bp.route("/logout", methods=["POST"])
     def logout():
         """User logout endpoint."""
         return AuthController.logout()
-    
+
     @auth_bp.route("/me", methods=["GET"])
     def get_current_user():
         """Get current authenticated user endpoint."""
         return AuthController.get_current_user()
+
+    # -- Email confirmation + password reset (one-time emailed links) ---
+
+    @auth_bp.route("/verify-email", methods=["POST"])
+    def verify_email():
+        return AuthController.verify_email()
+
+    @auth_bp.route("/resend-verification", methods=["POST"])
+    def resend_verification():
+        return AuthController.resend_verification()
+
+    @auth_bp.route("/forgot-password", methods=["POST"])
+    def forgot_password():
+        return AuthController.forgot_password()
+
+    @auth_bp.route("/reset-password", methods=["POST"])
+    def reset_password():
+        return AuthController.reset_password()
 
     # -- My Profile: identity / password / photo -----------------------
 

@@ -57,13 +57,59 @@ def get_all_materials() -> dict:
         return {"success": False, "error": str(e)}
 
 
+# Kept comfortably above the backend's own OLLAMA_TIMEOUT (480s, see
+# services/llm/ollama_provider.py) so a slow local generation hits THAT
+# timeout first and returns its friendlier "took too long, try again"
+# message - not this client cutting the connection first with a generic
+# httpx error that skips the backend's own handling entirely.
+_GENERATE_TIMEOUT = 500
+
+
 def generate_learning_material(unit_code: str, competency_name: str) -> dict:
     """Generate learning content for a unit from its existing references."""
     try:
         response = httpx.post(
             f"{backend_endpoint}api/materials/generate-learning",
             json={"unit_code": unit_code, "competency_name": competency_name},
-            timeout=150,
+            timeout=_GENERATE_TIMEOUT,
+        )
+        return response.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def list_subtopics(unit_code: str, competency_name: str) -> dict:
+    """List one short, generated title per reference group for a unit - the
+    fast first step of the "pick a subtopic, then generate just that one"
+    flow (see generate_subtopic_material). Returns
+    {"success": bool, "subtopics": [{"index", "title"}, ...]}."""
+    try:
+        response = httpx.post(
+            f"{backend_endpoint}api/materials/subtopics",
+            json={"unit_code": unit_code, "competency_name": competency_name},
+            timeout=_GENERATE_TIMEOUT,
+        )
+        return response.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def generate_subtopic_material(
+    unit_code: str, competency_name: str, subtopic_index: int, subtopic_title: str
+) -> dict:
+    """Generate learning content for ONE subtopic of a unit - called when
+    the user clicks that specific subtopic's own button, never
+    automatically for every subtopic in a loop."""
+    try:
+        response = httpx.post(
+            f"{backend_endpoint}api/materials/generate-subtopic",
+            json={
+                "unit_code": unit_code,
+                "competency_name": competency_name,
+                "subtopic_index": subtopic_index,
+                "subtopic_title": subtopic_title,
+            },
+            timeout=_GENERATE_TIMEOUT,
         )
         return response.json()
     except Exception as e:

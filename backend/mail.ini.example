@@ -1,0 +1,21 @@
+# Copy this file to mail.ini (same folder) and fill it in. mail.ini is
+# gitignored - never commit the real password.
+#
+# Gmail setup for gamaskill@gmail.com:
+#   1. Turn on 2-Step Verification for the account.
+#   2. Create an "App password" (Google Account > Security > App passwords).
+#   3. Paste the 16-character app password below (spaces are fine).
+#      The normal Gmail password does NOT work for SMTP.
+
+[mail]
+# false = email features off (no verification required, no password reset)
+enabled = true
+# smtp = really send; log = write emails to the backend log (testing only)
+backend = smtp
+host = smtp.gmail.com
+port = 587
+username = gamaskill@gmail.com
+password = xxxx xxxx xxxx xxxx
+from_name = GAMASKILL
+# Address learners use to open the app - links in emails point here.
+app_url = http://localhost:8501

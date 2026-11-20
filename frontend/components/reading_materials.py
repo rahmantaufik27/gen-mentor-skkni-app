@@ -7,10 +7,14 @@ can use it without knowing anything about materials.json, the recommendation
 logic, or the inline-viewer mechanics.
 """
 
+from datetime import datetime
+from html import escape
+
 import streamlit as st
 
-from utils.materials_api import get_all_materials, get_recommended_materials, material_source_id
-from utils.practice_api import record_material_view
+from data.unit_names_en import UNIT_NAMES_EN
+from utils.materials_api import get_all_materials, get_all_units, get_recommended_materials, material_source_id
+from utils.practice_api import record_material_view, get_read_material_ids
 from utils.notes_api import get_saved_source_ids, SOURCE_MATERIAL
 from components.notes import render_save_button
 
@@ -34,6 +38,17 @@ TYPE_ACCENT_KIND = {
     "video": "violet",
     "article": "teal",
 }
+
+
+def _unit_titles() -> dict:
+    """Unit code -> unit name, for cards whose material record has no name
+    (the recommendation feed doesn't carry one). Cached by get_all_units."""
+    result = get_all_units()
+    return {u.get("unit_code"): u.get("title") or "" for u in result.get("units", [])}
+
+
+def datetime_now_iso() -> str:
+    return datetime.now().isoformat()
 
 
 def _type_icon(material_type: str) -> str:
@@ -76,56 +91,65 @@ def _render_material_list(materials: list, key_prefix: str, show_status: bool, s
                 _render_material_card(row[offset], key_prefix, row_start + offset, show_status, saved_ids, read_ids)
 
 
-def _render_material_card(material: dict, key_prefix: str, idx: int, show_status: bool, saved_ids: set, read_ids: set):
+def _read_date(iso) -> str:
+    try:
+        from datetime import datetime
+        return datetime.fromisoformat(iso).strftime("%d %b").lstrip("0")
+    except (TypeError, ValueError):
+        return ""
+
+
+def _render_material_card(material: dict, key_prefix: str, idx: int, show_status: bool, saved_ids: set, read_ids: dict):
     """Render a single material as a card: icon, title, meta chips, then the
     View/Save actions - the unit of the grid built by _render_material_list.
 
-    is_read marks a card that was opened earlier this session (see
-    render_reading_materials) - it gets a distinct "read" key so the scoped
-    CSS in main.css can tint it and its own chip so the state isn't
-    color-only."""
+    is_read marks a card the learner has opened before (stored on the
+    server, see render_reading_materials) - it gets a distinct "read" key so
+    the scoped CSS in main.css can style it, its own chip so the state isn't
+    color-only, and an "Open again" label on its main button."""
     source_id = material_source_id(material)
     is_read = source_id in read_ids
     card_kind = "read" if is_read else "unread"
-    accent = _type_accent_kind(material.get("type"))
+    unit_code = str(material.get("unit_code") or "-")
+    unit_name = material.get("competency_name") or _unit_titles().get(unit_code, "")
 
+    # Option A ("quiet card", see the Material Card Options mockup): the card
+    # stays white in both states. Read shows as a green check on the icon, a
+    # "Read on <date>" note, and a green "Open again" button; Save and
+    # Discuss are icon buttons so the main action stands out.
     with st.container(border=True, key=f"gm_material_card_{card_kind}_{key_prefix}_{idx}"):
-        icon = _type_icon(material.get("type"))
-        st.markdown(f"<div class='gm-material-icon gm-accent-{accent}'>{icon}</div>", unsafe_allow_html=True)
+        check = "<div class='gm-mc-check'>✓</div>" if is_read else ""
         st.markdown(
-            f"<div class='gm-material-title'>{material.get('title', 'Untitled')}</div>",
+            f"<div class='gm-mc-top'><div class='gm-mc-thumb'>{_type_icon(material.get('type'))}{check}</div>"
+            f"<div class='gm-mc-head'><div class='gm-mc-title'>{escape(str(material.get('title', 'Untitled')))}</div>"
+            f"<div class='gm-mc-unit'>{escape(unit_code)}</div>"
+            + (f"<div class='gm-mc-unitname'>{escape(unit_name)}</div>" if unit_name else "")
+            + (f"<div class='gm-mc-unitname-en'>{escape(UNIT_NAMES_EN[unit_code])}</div>" if unit_code in UNIT_NAMES_EN else "")
+            + "</div></div>",
             unsafe_allow_html=True,
         )
 
-        # Color story: blue/teal/violet identify content type; green marks
-        # progress (Mastered unit, or a material already Read); amber flags
-        # a unit that still needs work - a nudge, not an alarm-red "danger".
-        chips = [
-            f"<span class='gm-badge gm-badge-neutral'>Unit {material.get('unit_code', '-')}</span>",
-            f"<span class='gm-badge gm-badge-{accent}'>{str(material.get('type', '-')).title()}</span>",
-        ]
+        parts = []
         if show_status:
             status = material.get("mastery_status", "Remedial")
-            badge_class = "gm-badge-success" if status == "Mastered" else "gm-badge-amber"
-            chips.append(f"<span class='gm-badge {badge_class}'>{status}</span>")
+            kind = "ok" if status == "Mastered" else "gap"
+            parts.append(f"<div class='gm-mc-dot {kind}'></div><div class='gm-mc-status {kind}'>{escape(status)}</div>"
+                         f"<div>· target {escape(str(material.get('target_level', '-')))}</div>")
         if is_read:
-            chips.append("<span class='gm-badge gm-badge-read'>✓ Read</span>")
-        st.markdown(f"<div class='gm-material-meta'>{''.join(chips)}</div>", unsafe_allow_html=True)
-        if show_status:
-            st.caption(f"Target: {material.get('target_level', '-')}")
+            when = _read_date(read_ids.get(source_id))
+            parts.append(f"<div>{'·' if show_status else ''}</div><div class='gm-mc-read'>✓ Read{' on ' + when if when else ''}</div>")
+        if parts:
+            st.markdown(f"<div class='gm-mc-line'>{''.join(parts)}</div>", unsafe_allow_html=True)
 
-        # Three compact buttons side-by-side - see main.css's
-        # "Compact Open Material / Save-to-Notes buttons" rule, which
-        # already shrinks padding/font for buttons in this card.
-        open_col, save_col, discuss_col = st.columns(3)
+        open_col, save_col, discuss_col = st.columns([5, 1.1, 1.1], gap="small")
         with open_col:
-            if st.button("Open Material", type="primary", key=f"view_{key_prefix}_{idx}", use_container_width=True):
-                # Fire-and-forget: count this material open for Learning Path
-                # stats. Never blocks or breaks the viewer if it fails.
-                record_material_view(material.get("unit_code"))
-                # Mark it read for the rest of this session so the card
-                # tints green when the user returns to this list.
-                read_ids.add(source_id)
+            label = ":material/replay: Open again" if is_read else "Open material :material/arrow_forward:"
+            if st.button(label, type="primary", key=f"view_{key_prefix}_{idx}", use_container_width=True):
+                # Fire-and-forget: stores which material was opened, which
+                # both feeds Learning Path stats and keeps the "Read" mark
+                # after logout. Never blocks the viewer if it fails.
+                record_material_view(material.get("unit_code"), source_id)
+                read_ids.setdefault(source_id, datetime_now_iso())
                 st.query_params["material_id"] = source_id
                 st.session_state.current_page = "material_detail"
                 st.rerun()
@@ -134,10 +158,11 @@ def _render_material_card(material: dict, key_prefix: str, idx: int, show_status
             render_save_button(
                 SOURCE_MATERIAL, source_id,
                 fields["snapshot_text"], title=fields["title"], source_ref=fields["source_ref"],
-                saved_ids=saved_ids, key=f"note_{key_prefix}_{idx}", use_container_width=True,
+                saved_ids=saved_ids, key=f"note_{key_prefix}_{idx}", use_container_width=True, material_icon=True,
             )
         with discuss_col:
-            if st.button("💬 Discuss", key=f"discuss_{key_prefix}_{idx}", use_container_width=True):
+            if st.button(":material/forum:", key=f"discuss_{key_prefix}_{idx}", use_container_width=True,
+                         help="Discuss this material"):
                 # Hand off to the Discussion page (Learning Path -> Discussion),
                 # pre-selecting this material's unit + thread - see
                 # components/discussion.py's prefill handling.
@@ -159,12 +184,15 @@ def render_reading_materials():
     # render so each card's Save/Remove toggle shows the right state without a
     # per-button lookup.
     saved_ids = get_saved_source_ids(SOURCE_MATERIAL)
-    # Which materials have been opened this session, so their cards can be
-    # tinted lime green. Materials have no DB id (see utils/materials_api.py::material_source_id)
-    # and per-material view history isn't tracked server-side (the backend
-    # only aggregates view counts per unit_code), so this is session-only -
-    # it resets on a fresh login/reload rather than persisting long-term.
-    read_ids = st.session_state.setdefault("gm_materials_read", set())
+    # Which materials this learner has opened before. Loaded from the server
+    # once per login (each opened material is recorded with its id), so the
+    # "Read" mark survives logout; materials opened during this session are
+    # added to the same set as they're opened.
+    if (st.session_state.get("gm_materials_read_user") != st.session_state.get("userId")
+            or not isinstance(st.session_state.get("gm_materials_read"), dict)):
+        st.session_state.gm_materials_read = get_read_material_ids()
+        st.session_state.gm_materials_read_user = st.session_state.get("userId")
+    read_ids = st.session_state.gm_materials_read
 
     tab_recommended, tab_all = st.tabs(["🎯 Recommended for You", "📚 All Materials"])
 

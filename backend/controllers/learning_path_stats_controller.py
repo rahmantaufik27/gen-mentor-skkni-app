@@ -23,6 +23,13 @@ class LearningPathStatsController:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    def get_read_materials(self, user_id: str) -> Dict:
+        """Ids of the materials a user has opened."""
+        try:
+            return self.stats_service.get_read_material_ids(user_id)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def record_activity(self, user_id: str, activity_type: str, metadata: Optional[Dict] = None) -> Dict:
         """Record one activity event (a counter/latest-timestamp metric)."""
         try:

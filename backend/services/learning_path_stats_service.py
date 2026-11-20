@@ -85,6 +85,25 @@ class LearningPathStatsService:
         except Exception as e:
             return {"success": False, "error": f"Failed to record activity: {str(e)}"}
 
+    def get_read_material_ids(self, user_id: str) -> Dict:
+        """Ids of the materials this user has opened (stored in the
+        material_view event's metadata since 2026-11-20; older events only
+        carry the unit code, so materials opened before then aren't listed)."""
+        try:
+            rows = execute_query(
+                """
+                SELECT metadata->>'material_id', MIN(occurred_at) FROM user_activity
+                WHERE user_id = %s AND activity_type = %s AND metadata ? 'material_id'
+                GROUP BY 1
+                """,
+                (user_id, ACTIVITY_MATERIAL_VIEW),
+                fetch=True,
+            ) or []
+            return {"success": True, "materials": {r[0]: r[1].isoformat() for r in rows if r[0]},
+                    "material_ids": [r[0] for r in rows if r[0]]}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to load read materials: {str(e)}"}
+
     # -- Aggregation -------------------------------------------------------
 
     def get_learning_path_stats(self, user_id: str) -> Dict:

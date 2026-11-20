@@ -9,7 +9,8 @@ import glob
 import os
 
 from flask import request, jsonify, session, send_from_directory
-from services.auth_service import AuthenticationService
+from services.auth_service import AuthenticationService, EMAIL_NOT_VERIFIED_MESSAGE
+from services import account_email_service
 from services.learning_path_stats_service import LearningPathStatsService, ACTIVITY_LOGIN
 
 # backend/storage/profile_photos/ - uploaded profile photos, one file per
@@ -23,12 +24,12 @@ _ALLOWED_PHOTO_EXTENSIONS = (".png", ".jpg", ".jpeg")
 
 class AuthController:
     """Handles authentication endpoints logic."""
-    
+
     @staticmethod
     def register():
         """
         Handle user registration request.
-        
+
         Expected JSON body:
         {
             "full_name": "John Doe",
@@ -39,42 +40,42 @@ class AuthController:
         """
         try:
             data = request.get_json()
-            
+
             if not data:
                 return jsonify({"error": "Request body is required"}), 400
-            
+
             full_name = data.get("full_name", "").strip()
             email = data.get("email", "").strip()
             password = data.get("password", "")
             confirm_password = data.get("confirm_password", "")
-            
+
             # Validate required fields
             if not full_name:
                 return jsonify({"error": "Full name is required"}), 400
-            
+
             if not email:
                 return jsonify({"error": "Email is required"}), 400
-            
+
             if not password:
                 return jsonify({"error": "Password is required"}), 400
-            
+
             # Validate password length
             if len(password) < 8:
                 return jsonify({"error": "Password must be at least 8 characters"}), 400
-            
+
             # Check password confirmation
             if password != confirm_password:
                 return jsonify({"error": "Passwords do not match"}), 400
-            
+
             # Validate email format (basic check)
             if "@" not in email or "." not in email:
                 return jsonify({"error": "Invalid email format"}), 400
-            
+
             # Register user
             success, message, user_id = AuthenticationService.register_user(
                 full_name, email, password
             )
-            
+
             if success:
                 return jsonify({
                     "message": message,
@@ -88,18 +89,18 @@ class AuthController:
                     "error": message,
                     "success": False
                 }), status_code
-        
+
         except Exception as e:
             return jsonify({
                 "error": f"Registration error: {str(e)}",
                 "success": False
             }), 500
-    
+
     @staticmethod
     def login():
         """
         Handle user login request.
-        
+
         Expected JSON body:
         {
             "email": "john@example.com",
@@ -108,19 +109,19 @@ class AuthController:
         """
         try:
             data = request.get_json()
-            
+
             if not data:
                 return jsonify({"error": "Request body is required"}), 400
-            
+
             email = data.get("email", "").strip()
             password = data.get("password", "")
-            
+
             if not email or not password:
                 return jsonify({"error": "Email and password are required"}), 400
-            
+
             # Authenticate user
             success, message, user_data = AuthenticationService.login_user(email, password)
-            
+
             if success:
                 # Store user info in the signed session cookie (see app.py SECRET_KEY)
                 session["user_id"] = user_data["id"]
@@ -142,15 +143,50 @@ class AuthController:
             else:
                 return jsonify({
                     "error": message,
-                    "success": False
+                    "success": False,
+                    "email_not_verified": message == EMAIL_NOT_VERIFIED_MESSAGE,
                 }), 401
-        
+
         except Exception as e:
             return jsonify({
                 "error": f"Login error: {str(e)}",
                 "success": False
             }), 500
-    
+
+    @staticmethod
+    def _email_action(handler, *fields):
+        """Shared body for the four email-link endpoints: read the named
+        JSON fields, call the service, return {success, message|error}."""
+        try:
+            data = request.get_json() or {}
+            ok, message = handler(*[data.get(f, "") for f in fields])
+            if ok:
+                return jsonify({"success": True, "message": message}), 200
+            return jsonify({"success": False, "error": message}), 400
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Request failed: {str(e)}"}), 500
+
+    @staticmethod
+    def verify_email():
+        return AuthController._email_action(account_email_service.verify_email, "token")
+
+    @staticmethod
+    def resend_verification():
+        return AuthController._email_action(account_email_service.resend_verification, "email")
+
+    @staticmethod
+    def forgot_password():
+        return AuthController._email_action(account_email_service.request_password_reset, "email")
+
+    @staticmethod
+    def reset_password():
+        return AuthController._email_action(
+            lambda token, password: account_email_service.reset_password(
+                token, password, AuthenticationService.hash_password
+            ),
+            "token", "new_password",
+        )
+
     @staticmethod
     def logout():
         """Handle user logout request."""
@@ -165,40 +201,40 @@ class AuthController:
                 "error": f"Logout error: {str(e)}",
                 "success": False
             }), 500
-    
+
     @staticmethod
     def get_current_user():
         """Get current authenticated user information."""
         try:
             user_id = session.get("user_id")
-            
+
             if not user_id:
                 return jsonify({
                     "error": "Not authenticated",
                     "success": False
                 }), 401
-            
+
             # Get user from database to ensure data is current
             user_data = AuthenticationService.get_user_by_id(user_id)
-            
+
             if not user_data:
                 session.clear()
                 return jsonify({
                     "error": "User not found",
                     "success": False
                 }), 404
-            
+
             return jsonify({
                 "user": user_data,
                 "success": True
             }), 200
-        
+
         except Exception as e:
             return jsonify({
                 "error": f"Error retrieving user: {str(e)}",
                 "success": False
             }), 500
-    
+
     @staticmethod
     def is_authenticated():
         """Check if user is authenticated."""

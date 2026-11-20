@@ -105,7 +105,8 @@ def render_chatbot_widget():
 
     bubble_state = "unread" if (is_unread and not is_open) else "idle"
     with st.container(key=f"chatbot_bubble_wrap_{bubble_state}"):
-        if st.button("✕" if is_open else "💬", key="chatbot_bubble_btn", help="Learning Assistant"):
+        if st.button(":material/close:" if is_open else ":material/chat:", key="chatbot_bubble_btn",
+                     help="Close" if is_open else "Learning Assistant"):
             opening = not is_open
             st.session_state[_OPEN_KEY] = opening
             if opening:
@@ -144,11 +145,11 @@ def _get_saved_chat_ids() -> set:
 
 def _render_panel():
     with st.container(key="chatbot_panel"):
-        title_col, minimize_col = st.columns([5, 1])
+        title_col, minimize_col = st.columns([6, 1], vertical_alignment="center")
         with title_col:
             st.markdown("**💬 Learning Assistant**")
         with minimize_col:
-            if st.button("➖", key="chatbot_minimize_btn", help="Minimize", use_container_width=True):
+            if st.button(":material/close_fullscreen:", key="chatbot_minimize_btn", help="Minimize"):
                 st.session_state[_OPEN_KEY] = False
                 st.rerun()
         st.caption("Standalone AI tutor on a local model - doesn't see your Test/Practice data.")

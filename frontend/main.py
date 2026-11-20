@@ -58,6 +58,7 @@ if is_logged_in:
 
 else:
     # ========================================================================
-    # NOT AUTHENTICATED - SHOW LOGIN PAGE
+    # NOT AUTHENTICATED - SHOW THE PUBLIC LANDING PAGE (its Sign In /
+    # Create Account buttons lead to pages/login.py and pages/register.py)
     # ========================================================================
-    st.switch_page("pages/login.py")
+    st.switch_page("pages/landing.py")

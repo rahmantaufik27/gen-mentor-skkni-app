@@ -26,3 +26,5 @@ AGENTS.md
 CLAUDE.md
 opencode.jsonc
 .claude/
+backend/mail.ini
+*.log

@@ -28,6 +28,7 @@ from utils.practice_api import start_practice, get_question, submit_answer, comp
 from utils.gating import get_learning_gating
 from utils.quiz_api import get_unit_code_map
 from utils.notes_api import get_saved_source_ids, SOURCE_QUESTION
+from utils.theme import render_exam_navigator, confirm_exam_action
 from components.notes import render_save_button
 
 
@@ -53,6 +54,23 @@ def initialize_practice_state():
         st.session_state.practice_result = None
     if "practice_show_review" not in st.session_state:
         st.session_state.practice_show_review = False
+    if "practice_question_status" not in st.session_state:
+        # 0-based question index -> "answered" | "skipped". Any index not in
+        # here, below the frontier (practice_current_question), was visited
+        # but has no explicit status yet (shouldn't normally happen); above
+        # the frontier it simply hasn't been opened.
+        st.session_state.practice_question_status = {}
+    if "practice_view_index" not in st.session_state:
+        # Which question is on screen right now. None means "whatever the
+        # frontier is" - set explicitly only when the learner jumps to an
+        # earlier (skipped/answered) question via the Question Navigator.
+        st.session_state.practice_view_index = None
+    if "practice_question_answers" not in st.session_state:
+        # 0-based question index -> previously selected choice letter, so
+        # revisiting an answered question pre-selects what was chosen
+        # before (and lets the learner change it - submit_answer upserts
+        # by index server-side, so resubmitting never double-counts).
+        st.session_state.practice_question_answers = {}
 
 
 def render_practice():
@@ -132,80 +150,219 @@ def _render_practice_start():
 
 
 def _render_practice_progress():
-    """Render practice in progress"""
+    """Render practice in progress.
+
+    `practice_current_question` is the FRONTIER - the furthest index ever
+    reached by forward (Submit/Skip) progression. `practice_view_index`
+    is what's actually on screen right now; it's None (meaning "= the
+    frontier") unless the learner jumped to an earlier skipped/answered
+    question via the Question Navigator. Jumping is always safe: viewing
+    an already-answered question is read-only (no re-submit, so the
+    backend's answers list never gets a duplicate entry for that index);
+    viewing a skipped question allows a real, first-time Submit for it.
+    """
     session_id = st.session_state.practice_session_id
-    question_index = st.session_state.practice_current_question
-    
-    question_result = get_question(session_id, question_index)
+    frontier_index = st.session_state.practice_current_question
+    status = st.session_state.practice_question_status
+
+    view_index = st.session_state.practice_view_index
+    if view_index is None:
+        view_index = frontier_index
+    is_frontier = view_index == frontier_index
+    view_status = status.get(view_index)
+
+    # Probe total_questions without assuming the frontier index is still
+    # in range (it won't be once every question has been visited at least
+    # once, via answer or skip, but some were only skipped).
+    # Cached per session so each rerun costs one get_question call, not two.
+    total_cache_key = f"practice_total_questions_{session_id}"
+    if total_cache_key not in st.session_state:
+        probe = get_question(session_id, 0)
+        if probe.get("success"):
+            st.session_state[total_cache_key] = probe.get("total_questions", 1)
+    total_questions = st.session_state.get(total_cache_key, 1)
+
+    if is_frontier and frontier_index >= total_questions:
+        # Every question has been opened. Nothing finishes automatically -
+        # the learner ends the exam with "Submit All Answers" - so keep a
+        # question on screen: the first one still unanswered, else the last.
+        remaining = [i for i in range(total_questions) if status.get(i) != "answered"]
+        if remaining:
+            st.warning(
+                f"You've gone through all {total_questions} questions, but "
+                f"{len(remaining)} are still unanswered. Answer them from the "
+                "Question Navigator, or click Submit All Answers to finish now."
+            )
+            view_index = remaining[0]
+        else:
+            st.success(
+                "All questions answered. You can still review or change any answer - "
+                "click Submit All Answers when you're done."
+            )
+            view_index = total_questions - 1
+        view_status = status.get(view_index)
+
+    question_result = get_question(session_id, view_index)
     if not question_result.get("success"):
         st.error("Failed to load question")
         return
 
-    total_questions = question_result.get("total_questions", 1)
-    question_number = question_result.get("question_number", question_index + 1)
+    total_questions = question_result.get("total_questions", total_questions)
+    question_number = question_result.get("question_number", view_index + 1)
     question_text = question_result.get("question_text", "")
     unit = question_result.get("unit", "")
     bloom_level = question_result.get("bloom_level", "")
     choices = question_result.get("choices", [])
     question_id = question_result.get("question_id")
 
-    progress_percentage = question_number / total_questions
-    st.progress(progress_percentage, text=f"Progress: {question_number}/{total_questions} questions")
-
-    st.markdown("")
-
-    with st.container(border=True):
-        st.subheader(f"Question {question_number} of {total_questions}")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.write(f"**Unit:** {unit}")
-        with col2:
-            st.write(f"**Bloom Level:** {bloom_level}")
-
-        st.divider()
-
-        st.write(f"### {question_text}")
-
-        if not choices:
-            st.warning("No answer choices available")
-            return
-
-        choice_options = [f"{choice.get('id')}. {choice.get('text')}" for choice in choices]
-
-        selected_text = st.radio(
-            label="Select your answer:",
-            options=choice_options,
-            key=f"practice_question_{question_number}"
+    topbar_col, exit_col = st.columns([5, 1])
+    with topbar_col:
+        st.markdown(
+            f"""
+            <div class="gm-exam-topbar">
+                <div class="gm-exam-topbar-fields">
+                    <div class="gm-exam-field">
+                        <span class="gm-exam-field-k">Unit Competency</span>
+                        <span class="gm-exam-field-v">{unit}</span>
+                    </div>
+                    <div class="gm-exam-field">
+                        <span class="gm-exam-field-k">Bloom Level</span>
+                        <span class="gm-exam-level-chip">{bloom_level}</span>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
+    with exit_col:
+        answered_count = sum(1 for v in status.values() if v == "answered")
+        unanswered_count = total_questions - answered_count
 
-        if selected_text:
-            selected_choice_id = selected_text.split(".")[0]
+        def _exit_exam():
+            st.session_state.practice_started = False
+            st.session_state.practice_current_question = 0
+            st.session_state.practice_session_id = None
+            st.session_state.practice_question_status = {}
+            st.session_state.practice_question_answers = {}
+            st.session_state.practice_view_index = None
+            st.session_state.current_page = "data_analytics"
+            return None
+
+        def _submit_all():
+            result = complete_practice(session_id)
+            if not result.get("success"):
+                return result.get("error") or "Could not submit your answers. Please try again."
+            st.session_state.practice_completed = True
+            st.session_state.practice_result = result
+            st.session_state.practice_view_index = None
+            return None
+
+        if st.button("Exit Exam", use_container_width=True, key="practice_exit_top"):
+            confirm_exam_action(
+                "Exit without scoring?",
+                "Nothing will be scored or saved, and this Practice session will be discarded.",
+                "Yes, exit",
+                _exit_exam,
+            )
+        if st.button("Submit All Answers", use_container_width=True, key="practice_submit_all_top"):
+            if unanswered_count:
+                detail = (
+                    f"You have answered {answered_count} of {total_questions} questions. "
+                    f"The {unanswered_count} unanswered question(s) will be scored as incorrect."
+                )
+            else:
+                detail = f"You have answered all {total_questions} questions."
+            confirm_exam_action(
+                "Submit all answers?",
+                detail + " Your Practice will be scored now and you can't change answers afterward.",
+                "Yes, submit",
+                _submit_all,
+            )
+
+    progress_percentage = min(frontier_index, total_questions) / total_questions
+    st.markdown(
+        f"""
+        <div class="gm-exam-progress-wrap">
+            <div class="gm-exam-progress-label">Question {question_number} of {total_questions}</div>
+            <div class="gm-exam-progress-track">
+                <div class="gm-exam-progress-fill" style="width:{progress_percentage * 100:.1f}%"></div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if not is_frontier:
+        note = "You already answered this question - you can change your answer below." if view_status == "answered" else "You skipped this question earlier. You can answer it now."
+        back_col1, back_col2 = st.columns([4, 1])
+        with back_col1:
+            st.info(note)
+        with back_col2:
+            if st.button("Back to Current", use_container_width=True, key="practice_back_to_current"):
+                st.session_state.practice_view_index = None
+                st.rerun()
+
+    main_col, nav_col = st.columns([3, 1.1])
+
+    with main_col:
+        with st.container(key="gm_exam_question_card"):
+            if view_status == "answered":
+                st.markdown('<span class="gm-question-answered-marker"></span>', unsafe_allow_html=True)
+            st.markdown(f"**Question {question_number}**")
+            st.write(f"### {question_text}")
+
+            if not choices:
+                st.warning("No answer choices available")
+                return
+
+            choice_options = [f"{choice.get('id')}. {choice.get('text')}" for choice in choices]
+
+            # Pre-select whatever was previously chosen (if anything), so
+            # revisiting an answered question shows - and lets the learner
+            # change - their existing answer instead of starting blank.
+            previous_choice = st.session_state.practice_question_answers.get(view_index)
+            preselect_idx = None
+            if previous_choice:
+                for i, opt in enumerate(choice_options):
+                    if opt.split(".")[0] == previous_choice:
+                        preselect_idx = i
+                        break
+
+            selected_text = st.radio(
+                label="Select your answer:",
+                options=choice_options,
+                key=f"practice_question_{view_index}",
+                index=preselect_idx,
+            )
 
             st.divider()
-
             col1, col2, col3 = st.columns(3)
 
             with col1:
-                if st.button("Submit Answer", use_container_width=True, type="primary"):
-                    submit_result = submit_answer(session_id, question_index, selected_choice_id)
+                submit_disabled = not selected_text
+                if st.button("Submit Answer", use_container_width=True, type="primary", disabled=submit_disabled):
+                    selected_choice_id = selected_text.split(".")[0]
+                    submit_result = submit_answer(session_id, view_index, selected_choice_id)
 
                     if submit_result.get("success"):
-                        progress_data = submit_result.get("progress", {})
-
-                        if progress_data.get("answered") >= total_questions:
-                            complete_result = complete_practice(session_id)
-                            if complete_result.get("success"):
-                                st.session_state.practice_completed = True
-                                st.session_state.practice_result = complete_result
-                                st.rerun()
-                        else:
-                            st.session_state.practice_current_question += 1
-                            st.rerun()
+                        status[view_index] = "answered"
+                        st.session_state.practice_question_answers[view_index] = selected_choice_id
+                        if is_frontier:
+                            st.session_state.practice_current_question = frontier_index + 1
+                        st.session_state.practice_view_index = None
+                        st.rerun()
                     else:
                         st.error(f"Failed to submit answer: {submit_result.get('error')}")
 
             with col2:
+                if view_status != "answered" and st.button("Skip", use_container_width=True, key="practice_skip_btn"):
+                    status[view_index] = "skipped"
+                    if is_frontier:
+                        st.session_state.practice_current_question = frontier_index + 1
+                    st.session_state.practice_view_index = None
+                    st.rerun()
+
+            with col3:
                 if question_id:
                     saved_q_ids = get_saved_source_ids(SOURCE_QUESTION)
                     snapshot = question_text + "\n\n" + "\n".join(f"- {opt}" for opt in choice_options)
@@ -216,12 +373,11 @@ def _render_practice_progress():
                         saved_ids=saved_q_ids, key=f"note_q_{question_id}",
                     )
 
-            with col3:
-                if st.button("Exit Practice", use_container_width=True):
-                    st.session_state.practice_started = False
-                    st.session_state.practice_current_question = 0
-                    st.session_state.practice_session_id = None
-                    st.rerun()
+    with nav_col:
+        render_exam_navigator(
+            total_questions, status, frontier_index + 1, view_index + 1,
+            key_prefix="practice", view_state_key="practice_view_index",
+        )
 
 
 def _render_practice_results():
@@ -260,7 +416,7 @@ def _render_practice_results():
         st.success("Nice work! Keep practicing to strengthen these units, then try a Test when you're ready.")
 
     st.markdown("")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         if st.button("Practice Again", use_container_width=True, type="primary"):
@@ -270,6 +426,9 @@ def _render_practice_results():
             st.session_state.practice_completed = False
             st.session_state.practice_result = None
             st.session_state.practice_show_review = False
+            st.session_state.practice_question_status = {}
+            st.session_state.practice_question_answers = {}
+            st.session_state.practice_view_index = None
             st.rerun()
 
     with col2:
@@ -286,7 +445,24 @@ def _render_practice_results():
             st.session_state.practice_completed = False
             st.session_state.practice_result = None
             st.session_state.practice_show_review = False
+            st.session_state.practice_question_status = {}
+            st.session_state.practice_question_answers = {}
+            st.session_state.practice_view_index = None
             st.session_state.current_page = "learning_path"
+            st.rerun()
+
+    with col4:
+        if st.button("Exit Exam", use_container_width=True):
+            st.session_state.practice_started = False
+            st.session_state.practice_current_question = 0
+            st.session_state.practice_session_id = None
+            st.session_state.practice_completed = False
+            st.session_state.practice_result = None
+            st.session_state.practice_show_review = False
+            st.session_state.practice_question_status = {}
+            st.session_state.practice_question_answers = {}
+            st.session_state.practice_view_index = None
+            st.session_state.current_page = "data_analytics"
             st.rerun()
 
     if st.session_state.practice_show_review:

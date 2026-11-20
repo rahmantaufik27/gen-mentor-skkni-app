@@ -43,17 +43,35 @@
     --sidebar-active-bg: #FFC600;
     --sidebar-active-text: #0B1C2E;
 
-    /* Calm "edtech" accents for content-type color coding (material icons/
-       chips) - kept apart from --primary/--success/--accent, which stay
-       reserved for actions, progress, and brand. */
-    --edu-blue: #2563EB;
-    --edu-blue-bg: rgba(37, 99, 235, 0.10);
-    --edu-teal: #0D9488;
-    --edu-teal-bg: rgba(13, 148, 136, 0.10);
-    --edu-violet: #7C3AED;
-    --edu-violet-bg: rgba(124, 58, 237, 0.10);
-    --edu-amber: #D97706;
-    --edu-amber-bg: rgba(217, 119, 6, 0.10);
+    /* Content-type/status accents for material icons/chips - drawn from the
+       app's own palette (navy/teal/gold-brown/rust) instead of generic
+       saturated SaaS hues (the old #2563EB blue, #7C3AED violet, #D97706
+       amber read as a different, brighter color family than the rest of
+       the app and clashed with it). --edu-blue/-violet keep their names
+       for backward compatibility with existing class names even though
+       they're no longer literally blue/violet. */
+    --edu-blue: var(--primary);
+    --edu-blue-bg: rgba(11, 28, 46, 0.08);
+    --edu-teal: var(--teal);
+    --edu-teal-bg: rgba(14, 116, 144, 0.10);
+    --edu-violet: var(--accent-deep);
+    --edu-violet-bg: rgba(138, 100, 0, 0.08);
+    --edu-amber: #9C4221;
+    --edu-amber-bg: rgba(156, 66, 33, 0.08);
+
+    /* Exit/exam-danger actions - previously only a literal inside
+       .gm-badge-danger; promoted to a token so the exam fullscreen UI
+       (see "Exam fullscreen mode" below) can share it. */
+    --danger: #DC2626;
+    --danger-bg: rgba(220, 38, 38, 0.08);
+    --danger-border: rgba(220, 38, 38, 0.28);
+
+    /* A vivid status-orange for "skipped" - deliberately NOT --edu-amber
+       (#9C4221), which is an intentionally muted rust-brown for content
+       icons, not meant to read as a bright status color next to the
+       equally-vivid --success green and --accent gold. */
+    --warning: #D97706;
+    --warning-bg: rgba(217, 119, 6, 0.10);
 }
 
 /* Unit codes, stats, and other data values get the mono face - distinct
@@ -628,13 +646,68 @@ div[class*="st-key-gm_material_card_"]:hover {
     transform: translateY(-2px);
 }
 
-/* Cards the user has already opened this session - tinted with the same
-   green used for "Mastered" (progress = green, consistently). Kept
-   distinct from the border rule above by matching the "_read_" part of
-   the key so unread cards keep the neutral border/background. */
-div[class*="st-key-gm_material_card_read_"] {
-    background-color: rgba(28, 122, 77, 0.06) !important;
-    border-color: var(--success) !important;
+/* The app-wide rule that gives every nested block its own white
+   background and padding (stVerticalBlockBorderWrapper) put a white box
+   behind each button row inside a card. Inside material cards those
+   nested blocks stay transparent and unpadded, so the card's own
+   background shows through evenly. */
+div[class*="st-key-gm_material_card_"] div[data-testid="stVerticalBlockBorderWrapper"] {
+    background-color: transparent !important;
+    padding: 0 !important;
+    border: none !important;
+}
+
+/* Material card, Option A ("quiet card"): white in both states. */
+.gm-mc-top { display: flex; align-items: center; gap: 12px; margin: 4px 0 12px; }
+.gm-mc-thumb { position: relative; width: 44px; height: 44px; border-radius: 11px; background: #EAF0F5;
+    display: grid; place-items: center; font-size: 20px; flex-shrink: 0; }
+.gm-mc-check { position: absolute; right: -6px; bottom: -6px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--success); color: #fff; border: 2px solid #fff; display: grid; place-items: center;
+    font-size: 11px; font-weight: 800; line-height: 1; }
+.gm-mc-top { align-items: flex-start; }
+.gm-mc-head { min-width: 0; flex: 1 1 auto; }
+.gm-mc-unitname-en { font-size: 11.5px; font-style: italic; color: #8A8E94; line-height: 1.4; margin-top: 2px; }
+/* Streamlit gives each element in a card an inline pixel width measured
+   before the card's padding existed, so long unit names ran past the right
+   edge. Keep every element inside the padded card. */
+div[class*="st-key-gm_material_card_"] .stElementContainer,
+div[class*="st-key-gm_material_card_"] .stElementContainer > div,
+div[class*="st-key-gm_material_card_"] div[data-testid="stHorizontalBlock"] {
+    width: 100% !important; max-width: 100% !important; min-width: 0 !important; box-sizing: border-box;
+}
+.gm-mc-title { font-size: 16px; font-weight: 800; color: var(--primary); line-height: 1.3; margin-bottom: 3px; }
+.gm-mc-unitname { font-size: 12.5px; color: var(--text-muted); line-height: 1.4; margin-top: 2px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gm-mc-unit { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
+.gm-mc-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; }
+.gm-mc-dot { width: 8px; height: 8px; border-radius: 50%; }
+.gm-mc-dot.gap { background: var(--edu-amber); }
+.gm-mc-dot.ok { background: var(--success); }
+.gm-mc-status { font-weight: 700; }
+.gm-mc-status.gap { color: var(--edu-amber); }
+.gm-mc-status.ok { color: var(--success); }
+.gm-mc-read { color: var(--success); font-weight: 700; }
+div[class*="st-key-gm_material_card_read_"] .gm-mc-thumb { background: rgba(28, 122, 77, 0.10); }
+
+/* Footer: a hairline above the buttons, all three the same height. */
+div[class*="st-key-gm_material_card_"] div[data-testid="stHorizontalBlock"] {
+    border-top: 1px solid var(--border); padding-top: 14px; margin-top: 2px; gap: 8px !important;
+}
+div[class*="st-key-gm_material_card_"] .stButton button {
+    min-height: 40px !important; height: 40px; padding: 0 12px !important; font-size: 13px !important;
+    white-space: nowrap;
+}
+div[class*="st-key-gm_material_card_"] .stButton button[kind^="secondary"] :is(p, span, div) { color: var(--text-muted) !important; }
+
+/* Read card: the main button turns solid green ("Open again"). */
+div[class*="st-key-gm_material_card_read_"] div[class*="st-key-view_"] .stButton button {
+    background-color: var(--success) !important; border-color: var(--success) !important;
+}
+div[class*="st-key-gm_material_card_read_"] div[class*="st-key-view_"] .stButton button:hover {
+    background-color: #166340 !important; border-color: #166340 !important;
+}
+div[class*="st-key-gm_material_card_read_"] div[class*="st-key-view_"] .stButton button :is(p, span, div) {
+    color: #fff !important;
 }
 
 .gm-material-icon {
@@ -689,11 +762,7 @@ div[class*="st-key-gm_material_card_read_"] {
    padding and text than the app's default buttons, since these three now
    sit side by side in a third of the card each rather than stacked
    full-width. */
-div[class*="st-key-gm_material_card_"] .stButton button {
-    padding: 0.3rem 0.6rem !important;
-    font-size: 12.5px !important;
-    min-height: 0 !important;
-}
+
 
 /* ---------------------------------------------------------------------- */
 /* Auth pages (login / register) — centered branded card                  */
@@ -808,7 +877,19 @@ div[class*="st-key-chatbot_bubble_wrap_"] {
     position: fixed;
     bottom: 20px;
     right: 24px;
+    left: auto !important;
+    /* Shrink to the button: Streamlit gives this block the full width of
+       the page column, which left the button sitting at the column's left
+       edge instead of the right corner. */
+    width: 56px !important;
+    min-width: 0 !important;
     z-index: 9999;
+}
+div[class*="st-key-chatbot_bubble_wrap_"] > div,
+div[class*="st-key-chatbot_bubble_wrap_"] .stElementContainer,
+div[class*="st-key-chatbot_bubble_wrap_"] .stElementContainer > div {
+    width: 56px !important;
+    min-width: 0 !important;
 }
 
 div[class*="st-key-chatbot_bubble_wrap_"] .stButton button {
@@ -827,6 +908,12 @@ div[class*="st-key-chatbot_bubble_wrap_"] .stButton button {
     box-shadow: var(--shadow);
 }
 
+/* The label sits in its own <p>/<span>, which the base typography rule
+   colors navy - invisible on the navy bubble - so color it directly. */
+div[class*="st-key-chatbot_bubble_wrap_"] .stButton button :is(p, span, div) {
+    color: #fff !important;
+    font-size: 24px !important;
+}
 div[class*="st-key-chatbot_bubble_wrap_"] .stButton button:hover {
     background: var(--primary-hover) !important;
     border-color: var(--primary-hover) !important;
@@ -848,15 +935,60 @@ div[class*="st-key-chatbot_panel"] {
     position: fixed;
     bottom: 90px;
     right: 24px;
-    width: 350px;
+    left: auto !important;
+    width: 360px !important;
     max-width: calc(100vw - 32px);
-    max-height: 65vh;
+    max-height: 70vh;
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--card) !important;
     border: 1px solid var(--border) !important;
-    box-shadow: var(--shadow);
-    padding: 14px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 12px 32px rgba(11, 28, 46, 0.18);
+    padding: 14px 16px !important;
+    gap: 8px !important;
     z-index: 9998;
+}
+/* Same inline-width problem as the cards: keep everything inside the
+   panel's own 360px instead of the page column's width. */
+div[class*="st-key-chatbot_panel"] .stElementContainer,
+div[class*="st-key-chatbot_panel"] .stElementContainer > div,
+div[class*="st-key-chatbot_panel"] div[data-testid="stVerticalBlockBorderWrapper"],
+div[class*="st-key-chatbot_panel"] div[data-testid="stHorizontalBlock"],
+div[class*="st-key-chatbot_panel"] div[data-testid="stForm"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+}
+div[class*="st-key-chatbot_panel"] div[data-testid="stVerticalBlockBorderWrapper"] {
+    padding: 0 !important;
+}
+
+/* Header: title on the left, a small borderless minimize icon on the right. */
+div[class*="st-key-chatbot_panel"] div[data-testid="stHorizontalBlock"]:first-of-type {
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+div[class*="st-key-chatbot_minimize_btn"] {
+    display: flex;
+    justify-content: flex-end;
+}
+div[class*="st-key-chatbot_minimize_btn"] .stButton button {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    color: var(--text-muted) !important;
+    box-shadow: none !important;
+}
+div[class*="st-key-chatbot_minimize_btn"] .stButton button:hover {
+    background: var(--soft) !important;
+    color: var(--primary) !important;
 }
 
 /* The panel is its own fixed-size box, not something that shrinks with the
@@ -1535,3 +1667,534 @@ div[class*="st-key-onb_mark_goal_wrap"] .stButton button {
         max-height: 75vh;
     }
 }
+
+/* ============================================================================
+   Exam fullscreen mode (Practice / Pre-Test / Post-Test in progress)
+   Matches the approved mockup: a navy top bar (unit + Bloom level + Exit),
+   a gradient progress strip, a bordered question card with card-styled
+   radio options, and a right-hand "Question Navigator" status grid.
+   Built from plain HTML/CSS (st.markdown) wherever no native widget needs
+   to live inside it, since Streamlit can't nest real widgets inside a raw
+   HTML wrapper string - only the Exit Exam button stays a real st.button,
+   recolored via the ":has(marker)" trick below.
+   ============================================================================ */
+
+.gm-exam-topbar {
+    background: var(--primary);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+.gm-exam-topbar-fields {
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.gm-exam-field { display: flex; flex-direction: column; gap: 2px; }
+.gm-exam-field-k {
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: rgba(255, 255, 255, 0.55);
+}
+.gm-exam-field-v {
+    font-family: var(--font); font-size: 16px; font-weight: 700; color: #fff;
+}
+.gm-exam-level-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--accent); color: var(--primary);
+    font-weight: 700; font-size: 12.5px;
+    padding: 5px 12px; border-radius: 999px;
+}
+
+/* Exit Exam button - targeted by its own exact "st-key-<key>" class. The
+   class is repeated so this outranks the app-wide
+   '.stButton button[kind^="secondary"]' !important rule above (a plain
+   'div[class*=...] button' loses to it on specificity), and the label's
+   own <p>/<span> is colored directly, since the base typography rule sets
+   their color and would otherwise win over the button's inherited one. */
+.st-key-practice_exit_top.st-key-practice_exit_top.st-key-practice_exit_top button,
+.st-key-test_exit_top.st-key-test_exit_top.st-key-test_exit_top button {
+    background-color: var(--danger-bg) !important;
+    color: var(--danger) !important;
+    border: 1.5px solid var(--danger-border) !important;
+    margin-top: 14px;
+}
+.st-key-practice_exit_top.st-key-practice_exit_top.st-key-practice_exit_top button :is(p, span, div),
+.st-key-test_exit_top.st-key-test_exit_top.st-key-test_exit_top button :is(p, span, div) {
+    color: var(--danger) !important;
+    font-weight: 700;
+}
+.st-key-practice_exit_top.st-key-practice_exit_top.st-key-practice_exit_top button:hover,
+.st-key-test_exit_top.st-key-test_exit_top.st-key-test_exit_top button:hover {
+    background-color: rgba(220, 38, 38, 0.16) !important;
+}
+
+/* Submit All Answers - same size as Exit Exam, directly below it, solid
+   green so the scoring action reads differently from the discard one. */
+.st-key-practice_submit_all_top.st-key-practice_submit_all_top.st-key-practice_submit_all_top button,
+.st-key-test_submit_all_top.st-key-test_submit_all_top.st-key-test_submit_all_top button {
+    background-color: var(--success) !important;
+    border: 1.5px solid var(--success) !important;
+    color: #fff !important;
+}
+.st-key-practice_submit_all_top.st-key-practice_submit_all_top.st-key-practice_submit_all_top button :is(p, span, div),
+.st-key-test_submit_all_top.st-key-test_submit_all_top.st-key-test_submit_all_top button :is(p, span, div) {
+    color: #fff !important;
+    font-weight: 700;
+}
+.st-key-practice_submit_all_top.st-key-practice_submit_all_top.st-key-practice_submit_all_top button:hover,
+.st-key-test_submit_all_top.st-key-test_submit_all_top.st-key-test_submit_all_top button:hover {
+    filter: brightness(0.92);
+}
+
+.gm-exam-progress-wrap { margin-bottom: 14px; }
+.gm-exam-progress-label {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    margin-bottom: 6px;
+}
+.gm-exam-progress-track {
+    width: 100%; height: 7px; border-radius: 999px;
+    background: var(--soft); overflow: hidden;
+}
+.gm-exam-progress-fill {
+    height: 100%; border-radius: 999px;
+    background: linear-gradient(90deg, var(--teal), var(--accent));
+}
+
+/* Question card: a bit more presence than the plain bordered container
+   default, to match the mockup's white card-on-grey-page look. */
+/* The "st-key-<key>" class sits on the container's own block, so the card
+   styling goes on that element itself - a "> div" child selector would
+   turn every row inside it into its own separate card. */
+.st-key-gm_exam_question_card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 24px;
+    box-sizing: border-box;
+}
+/* Streamlit sizes each child with an inline pixel width measured from the
+   container BEFORE this card's padding existed, so long questions/options
+   stuck out past the right edge. Force children back inside the padded
+   box and let long words wrap. */
+.st-key-gm_exam_question_card > div,
+div[class*="_gm_exam_navigator"] > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+}
+/* The widget inside each element container (stRadio, stMarkdown, ...)
+   carries its own inline pixel width too - measured in a browser at
+   1271px inside a 1221px content box - so it needs the same override. */
+.st-key-gm_exam_question_card .stElementContainer > div {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+/* The app-wide block-wrapper rule pads every nested wrapper by 4px 15px,
+   which left each navigator cell half the width of its column. */
+div[class*="_gm_exam_navigator"] div[data-testid="stVerticalBlockBorderWrapper"] {
+    padding: 0 !important;
+    background-color: transparent;
+}
+.st-key-gm_exam_question_card :is(h1, h2, h3, h4, p, label, li) {
+    overflow-wrap: anywhere;
+}
+.st-key-gm_exam_question_card div[role="radiogroup"] > label {
+    box-sizing: border-box;
+}
+
+/* Inline code in questions/options (e.g. console.log()): Streamlit's
+   default is light green on near-white, which is close to invisible on
+   this card. Navy on a blue-grey chip keeps it readable in every option
+   state (plain, hover-teal, answered-green). */
+.st-key-gm_exam_question_card code {
+    color: var(--primary) !important;
+    background: #E4EAF1 !important;
+    border: 1px solid #C5D0DC;
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.88em;
+}
+
+/* Radio options skinned as full-width, bordered, selectable rows. Scoped
+   to the option labels inside the radiogroup only - the widget's own
+   "Select your answer:" label is a <label> too and must stay plain. */
+.st-key-gm_exam_question_card div[role="radiogroup"] {
+    gap: 10px;
+    width: 100%;
+}
+.st-key-gm_exam_question_card div[role="radiogroup"] > label {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin: 0 !important;
+    transition: border-color .15s, background .15s;
+}
+.st-key-gm_exam_question_card div[role="radiogroup"] > label:hover {
+    border-color: var(--teal);
+    background: var(--edu-teal-bg);
+}
+.st-key-gm_exam_question_card div[role="radiogroup"] > label:has(input:checked) {
+    border-color: var(--teal);
+    background: var(--edu-teal-bg);
+}
+
+/* Once a question has been answered, its selected option turns green
+   instead of teal - a hidden marker rendered inside the same card flags
+   this. */
+.st-key-gm_exam_question_card:has(.gm-question-answered-marker) div[role="radiogroup"] > label:has(input:checked) {
+    border-color: var(--success);
+    background: rgba(28, 122, 77, 0.12);
+}
+
+/* Question Navigator card (the keyed container's own block, see above). */
+div[class*="_gm_exam_navigator"] {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 16px 22px;
+    gap: 6px !important;
+}
+.gm-exam-nav-title {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--primary);
+    margin: 0 0 10px;
+}
+
+/* Each navigator cell is a REAL st.button (so clicking it can jump to
+   that question); color comes from a per-button, key-derived rule built
+   dynamically in render_exam_navigator() (utils/theme.py) - targeting
+   each button's own "st-key-<key>" class directly, which is exact and
+   doesn't depend on ":has()" matching a sibling marker. This block only
+   handles layout/sizing, which is the same for every cell regardless of
+   its status. */
+div[class*="_gm_exam_navigator"] div[data-testid="stHorizontalBlock"] {
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+}
+div[class*="_gm_exam_navigator"] div[data-testid="stColumn"] {
+    padding: 0 !important;
+    min-width: 0 !important;
+    flex: 1 1 0 !important;
+}
+/* Every wrapper between the column and the button must be full width, or
+   the square cells shrink to their text instead of filling the column. */
+div[class*="_gm_exam_navigator"] div[data-testid="stColumn"] div {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+/* !important + three class/attribute selectors throughout: the app-wide
+   '.stButton button' rule sets padding with !important, which otherwise
+   keeps these from ever becoming compact square cells. */
+div[class*="_gm_exam_navigator"] div[data-testid="stColumn"] button[kind^="secondary"] {
+    aspect-ratio: 1 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+}
+div[class*="_gm_exam_navigator"] div[data-testid="stColumn"] button[kind^="secondary"] :is(p, span, div) {
+    font-family: var(--font);
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+}
+div[class*="_gm_exam_navigator"] div[data-testid="stColumn"] button[kind^="secondary"]:not(:disabled):hover {
+    filter: brightness(0.93);
+}
+
+.gm-exam-legend { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+.gm-exam-legend-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-muted);
+}
+.gm-exam-legend-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
+.gm-exam-legend-swatch.answered { background: var(--success); }
+.gm-exam-legend-swatch.skipped { background: var(--warning); }
+.gm-exam-legend-swatch.unopened { background: var(--soft); border: 1px solid var(--border); }
+.gm-exam-legend-row b { color: var(--text); font-weight: 600; }
+
+/* ============================================================================
+   Data Analytics page (components/test_analytics_view.py)
+   Summary band, one C1-C6 level bar per unit, navy "next step" band.
+   Text lives in <div>s only: the base typography rule colors p/span/label/li
+   directly, which would override any color inherited from these classes.
+   ============================================================================ */
+.gm-da-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 22px 24px; margin-bottom: 4px;
+}
+.gm-da-h2 { font-size: 16px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+.gm-da-h2-loose { margin-top: 10px; }
+.gm-da-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+.gm-da-summary { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: center; }
+.gm-da-verdict { display: flex; gap: 16px; align-items: center; min-width: 0; }
+.gm-da-ring {
+    flex-shrink: 0; width: 84px; height: 84px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--soft);
+}
+.gm-da-ring-in {
+    width: 62px; height: 62px; border-radius: 50%; background: var(--card);
+    display: grid; place-items: center; font-weight: 800; font-size: 18px; color: var(--primary);
+    font-variant-numeric: tabular-nums;
+}
+.gm-da-headline { font-size: 19px; font-weight: 800; color: var(--primary); line-height: 1.3; }
+.gm-da-body { margin-top: 6px; font-size: 13.5px; color: var(--text-muted); line-height: 1.5; }
+.gm-da-pill {
+    display: inline-block; font-size: 11px; font-weight: 800; letter-spacing: .05em;
+    text-transform: uppercase; border-radius: 999px; padding: 3px 10px; margin-bottom: 8px;
+}
+.gm-da-pill.notyet { background: rgba(255, 198, 0, 0.22); color: var(--accent-deep); }
+.gm-da-pill.pass { background: rgba(28, 122, 77, 0.12); color: var(--success); }
+.gm-da-pill.locked { background: var(--soft); color: var(--text-muted); }
+
+.gm-da-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.gm-da-fact { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: #FBFBF9; }
+.gm-da-fact-k { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); }
+.gm-da-fact-v {
+    margin-top: 4px; font-size: 18px; font-weight: 800; color: var(--primary);
+    font-variant-numeric: tabular-nums; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+}
+.gm-da-fact-small { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+
+.gm-da-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+.gm-da-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.gm-da-sw { width: 22px; height: 10px; border-radius: 3px; }
+.gm-da-sw.reached { background: var(--accent); }
+.gm-da-sw.mastered { background: var(--success); }
+.gm-da-sw.todo { background: var(--soft); border: 1px solid var(--border); }
+.gm-da-sw.target { border: 2px solid var(--primary); }
+
+.gm-da-unit {
+    display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.5fr) 190px;
+    gap: 18px; align-items: center; padding: 14px 0; border-top: 1px solid var(--border);
+}
+.gm-da-unit:first-child { border-top: none; }
+.gm-da-code { font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; color: var(--primary); }
+.gm-da-title { font-size: 13px; color: var(--text-muted); margin-top: 3px; line-height: 1.4; }
+.gm-da-track-wrap { padding-top: 14px; }
+.gm-da-track { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.gm-da-seg {
+    position: relative; height: 26px; border-radius: 5px; background: var(--soft);
+    display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--text-muted);
+}
+.gm-da-seg.reached { background: var(--accent); color: var(--primary); }
+.gm-da-seg.mastered { background: var(--success); color: #fff; }
+.gm-da-seg.target { box-shadow: 0 0 0 2px var(--primary); }
+.gm-da-seg.target::after {
+    content: "Target"; position: absolute; top: -17px; left: 50%; transform: translateX(-50%);
+    font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--primary);
+}
+.gm-da-gap { text-align: right; }
+.gm-da-chip { display: inline-block; font-size: 11.5px; font-weight: 800; border-radius: 999px; padding: 4px 11px; }
+.gm-da-chip.remedial { background: rgba(255, 198, 0, 0.22); color: var(--accent-deep); }
+.gm-da-chip.mastered { background: rgba(28, 122, 77, 0.12); color: var(--success); }
+.gm-da-why { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+.gm-da-delta { font-size: 12px; font-weight: 700; color: var(--success); margin-top: 5px; }
+
+/* Next-step band: the keyed container's own block is the navy card. */
+div[class*="st-key-gm_da_next_"]:not([class*="st-key-gm_da_next_btn_"]) {
+    background: var(--primary); border-radius: 12px; padding: 20px 24px; gap: 12px !important;
+}
+div[class*="st-key-gm_da_next_"]:not([class*="st-key-gm_da_next_btn_"]) > div {
+    width: 100% !important; max-width: 100% !important;
+}
+.gm-da-next-h { font-size: 16px; font-weight: 800; color: #fff; }
+.gm-da-next-p { margin-top: 5px; font-size: 13.5px; color: rgba(255, 255, 255, 0.78); line-height: 1.5; max-width: 70ch; }
+div[class*="st-key-gm_da_next_btn_"][class*="st-key-"][class*="gm_da"] button {
+    background-color: var(--accent) !important; border: 1.5px solid var(--accent) !important;
+    color: var(--primary) !important;
+}
+div[class*="st-key-gm_da_next_btn_"][class*="st-key-"][class*="gm_da"] button :is(p, span, div) {
+    color: var(--primary) !important; font-weight: 800 !important;
+}
+
+.gm-da-locked { text-align: center; padding: 34px 24px; }
+.gm-da-locked .gm-da-body { max-width: 56ch; margin-left: auto; margin-right: auto; }
+.gm-da-checklist { display: inline-flex; flex-direction: column; gap: 8px; margin-top: 18px; text-align: left; font-size: 13.5px; color: var(--text); }
+.gm-da-check { display: flex; gap: 8px; align-items: center; }
+.gm-da-dot { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+.gm-da-dot.done { background: var(--success); color: #fff; }
+.gm-da-dot.open { background: var(--soft); color: var(--text-muted); border: 1px solid var(--border); }
+
+@media (max-width: 820px) {
+    .gm-da-summary { grid-template-columns: 1fr; }
+    .gm-da-unit { grid-template-columns: 1fr; gap: 10px; }
+    .gm-da-gap { text-align: left; }
+}
+
+/* ============================================================================
+   Admin console (components/admin_console.py) - small bar charts and role
+   chips. Text sits in <div>s for the same reason as the Data Analytics page.
+   ============================================================================ */
+.gm-ad-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 18px; margin-bottom: 6px; }
+.gm-ad-hbar { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 5px 0; font-size: 13px; }
+.gm-ad-hbar-label { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-ad-hbar-track { height: 12px; border-radius: 6px; background: var(--soft); overflow: hidden; }
+.gm-ad-hbar-fill { height: 100%; border-radius: 6px; background: var(--teal); }
+.gm-ad-hbar-fill.gold { background: var(--accent); }
+.gm-ad-hbar-fill.green { background: var(--success); }
+.gm-ad-hbar-val { min-width: 34px; text-align: right; font-weight: 700; color: var(--primary); font-variant-numeric: tabular-nums; }
+.gm-ad-hbar-val.wide { min-width: 120px; font-size: 12px; }
+.gm-ad-stack { display: flex; height: 20px; border-radius: 6px; overflow: hidden; background: var(--soft); }
+.gm-ad-stack > div { height: 100%; }
+.gm-ad-roles { display: flex; gap: 8px; flex-wrap: wrap; }
+.gm-ad-role { background: var(--soft); border-radius: 8px; padding: 7px 12px; font-weight: 700; font-size: 13px; color: var(--text); }
+.gm-ad-role.live { background: var(--primary); color: #fff; }
+@media (max-width: 640px) { .gm-ad-hbar { grid-template-columns: 110px minmax(0, 1fr) auto; } }
+.gm-ad-qtext { font-size: 16px; font-weight: 700; color: var(--primary); margin: 6px 0 12px; line-height: 1.45; }
+.gm-ad-option { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+    border: 1.5px solid var(--border); border-radius: 8px; padding: 9px 12px; margin-bottom: 6px; font-size: 14px; color: var(--text); }
+.gm-ad-option.key { border-color: var(--success); background: rgba(28, 122, 77, 0.08); }
+.gm-ad-option-id { font-weight: 800; color: var(--primary); }
+.gm-ad-option-tag { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--success); }
+
+/* ============================================================================
+   Login page (pages/login.py) - split layout. Everything page-level is scoped
+   with :has(.gm-login-brand) so no other page is affected.
+   ============================================================================ */
+.stApp:has(.gm-login-brand) [data-testid="stMainBlockContainer"],
+.stApp:has(.gm-login-brand) .block-container {
+    padding: 0 !important; max-width: 100% !important;
+}
+.stApp:has(.gm-login-brand) [data-testid="stElementContainer"]:has(style) { display: none !important; }
+/* The app-wide rule pads every nested block 4px 15px; on this page that
+   pushed the navy panel off the window edge and indented the form fields. */
+.stApp:has(.gm-login-brand) [data-testid="stVerticalBlockBorderWrapper"] { padding: 0 !important; background: transparent !important; }
+.stApp:has(.gm-login-brand) [data-testid="stVerticalBlock"] { gap: 0; }
+div[data-testid="stHorizontalBlock"]:has(.gm-login-brand) { gap: 0 !important; min-height: 100vh; align-items: stretch; }
+div[data-testid="stColumn"]:has(.gm-login-brand) { padding: 0 !important; }
+div[data-testid="stColumn"]:has(.gm-login-brand) .stElementContainer,
+div[data-testid="stColumn"]:has(.gm-login-brand) .stElementContainer > div,
+div[data-testid="stColumn"]:has(.gm-login-brand) .stMarkdown,
+div[data-testid="stColumn"]:has(.gm-login-brand) [data-testid="stMarkdownContainer"],
+div[data-testid="stColumn"]:has(.gm-login-brand) [data-testid="stVerticalBlock"],
+div[data-testid="stColumn"]:has(.gm-login-brand) [data-testid="stVerticalBlockBorderWrapper"] {
+    width: 100% !important; height: 100%; padding: 0 !important; background: transparent;
+}
+
+/* left: navy brand panel */
+.gm-login-brand {
+    background: var(--primary); color: #fff; min-height: 100vh; height: 100%;
+    padding: 40px 56px; display: flex; flex-direction: column; justify-content: space-between; gap: 36px;
+    position: relative; overflow: hidden; box-sizing: border-box;
+}
+.gm-login-brand::after {
+    content: ""; position: absolute; right: -120px; top: -120px; width: 360px; height: 360px; border-radius: 50%;
+    border: 60px solid rgba(255, 198, 0, 0.07); pointer-events: none;
+}
+.gm-lb-brand { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+.gm-lb-logo { width: 42px; height: 42px; border-radius: 11px; background: var(--accent); display: grid; place-items: center; flex-shrink: 0; }
+.gm-lb-name { font-weight: 800; font-size: 18px; color: #fff; }
+.gm-lb-name.dark { color: var(--primary); }
+.gm-lb-tag { font-size: 11px; color: rgba(255, 255, 255, 0.6); }
+.gm-lb-pitch { position: relative; z-index: 1; max-width: 460px; }
+.gm-lb-h2 { font-size: clamp(28px, 2.8vw, 40px); line-height: 1.1; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 14px; color: #fff; }
+.gm-lb-h2 em { font-style: normal; color: var(--accent); }
+.gm-lb-p { color: rgba(255, 255, 255, 0.72); line-height: 1.6; font-size: 14.5px; }
+.gm-lb-sample { position: relative; z-index: 1; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px; padding: 18px; max-width: 460px; }
+.gm-lb-k { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); margin-bottom: 12px; }
+.gm-lb-row { margin-bottom: 14px; }
+.gm-lb-row:last-child { margin-bottom: 0; }
+.gm-lb-top { display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 6px; color: #fff; }
+.gm-lb-code { font-family: var(--font-mono); font-weight: 700; }
+.gm-lb-chip { font-weight: 800; font-size: 10.5px; color: var(--accent); }
+.gm-lb-chip.met { color: #7BD4A4; }
+.gm-lb-track { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.gm-lb-seg { display: block; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); }
+.gm-lb-seg.on { background: var(--accent); }
+.gm-lb-seg.met { background: #3FA372; }
+.gm-lb-seg.t { box-shadow: 0 0 0 1.5px #fff; }
+.gm-lb-foot { position: relative; z-index: 1; font-size: 12px; color: rgba(255, 255, 255, 0.45); }
+
+/* right: form column, centred, 400px wide */
+div[data-testid="stColumn"]:has(.st-key-gm_login_form) { padding: max(48px, 14vh) 24px 40px !important; }
+.st-key-gm_login_form { width: 100% !important; max-width: 400px !important; margin: 0 auto; gap: 0 !important; }
+.st-key-gm_login_form [data-testid="stVerticalBlock"], .st-key-gm_login_form .stElementContainer, .st-key-gm_login_form .stElementContainer > div,
+.st-key-gm_login_form div[data-testid="stForm"] { width: 100% !important; max-width: 100% !important; }
+.gm-login-mobile-brand { display: none; align-items: center; gap: 10px; margin-bottom: 24px; }
+.gm-login-back { display: inline-block; font-size: 13px; font-weight: 600; color: var(--text-muted) !important; text-decoration: none !important; margin-bottom: 26px; }
+.gm-login-back:hover { color: var(--primary) !important; }
+.gm-login-h1 { font-size: 28px; font-weight: 800; color: var(--primary); letter-spacing: -0.01em; margin-bottom: 6px; }
+.gm-login-sub { color: var(--text-muted); line-height: 1.5; margin-bottom: 22px; font-size: 14px; }
+.st-key-gm_login_form div[data-testid="stForm"] { border: none !important; padding: 0 !important; background: transparent !important; }
+.st-key-gm_login_form [data-testid="stTextInput"] label p { font-size: 13px !important; font-weight: 700 !important; color: var(--text) !important; }
+.st-key-gm_login_form [data-testid="stTextInput"] div[data-baseweb="input"] {
+    background: #fff !important; border: 1.5px solid var(--border) !important; border-radius: 10px !important; min-height: 46px;
+}
+.st-key-gm_login_form [data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
+    border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(11, 28, 46, 0.10);
+}
+.st-key-gm_login_form [data-testid="stTextInput"] div[data-baseweb="input"] > div,
+.st-key-gm_login_form [data-testid="stTextInput"] input { background: transparent !important; }
+.st-key-gm_login_form .stFormSubmitButton button, .st-key-gm_login_form .stButton button { height: 48px; border-radius: 10px !important; font-weight: 800 !important; }
+.st-key-gm_login_form .stFormSubmitButton { margin-top: 8px; }
+.st-key-gm_login_form [data-testid="stTextInput"] { margin-bottom: 12px; }
+
+/* "Forgot password?" and "Back to sign in" read as text links */
+.st-key-gm_login_forgot, .st-key-gm_login_back_signin { display: flex; justify-content: flex-end; margin-top: 4px; }
+.st-key-gm_login_back_signin { justify-content: flex-start; margin-top: 14px; }
+.st-key-gm_login_forgot .stButton, .st-key-gm_login_back_signin .stButton { width: auto !important; }
+.st-key-gm_login_forgot .stButton button, .st-key-gm_login_back_signin .stButton button {
+    background: transparent !important; border: none !important; height: auto; padding: 4px 0 !important; box-shadow: none !important;
+}
+.st-key-gm_login_forgot .stButton button :is(p, span, div), .st-key-gm_login_back_signin .stButton button :is(p, span, div) {
+    color: var(--teal) !important; font-size: 13px !important; font-weight: 700 !important;
+}
+.st-key-gm_login_forgot .stButton button:hover :is(p, span, div),
+.st-key-gm_login_back_signin .stButton button:hover :is(p, span, div) { text-decoration: underline; }
+
+.gm-login-divider { display: flex; align-items: center; gap: 12px; color: #A3A6AA; font-size: 12px; margin: 20px 0 14px; }
+.gm-login-divider::before, .gm-login-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.gm-login-admin { margin-top: 28px; text-align: center; font-size: 12px; color: #A3A6AA; }
+.gm-login-admin a { color: var(--text-muted) !important; }
+
+.gm-login-alert { display: flex; gap: 10px; align-items: flex-start; border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+.gm-login-alert svg { flex-shrink: 0; margin-top: 1px; }
+.gm-login-alert.error { background: #FDF1F0; border: 1px solid #F3C7C4; color: #8E1D14; }
+.gm-login-alert.warn { background: #FFF8DB; border: 1px solid #F3E4A6; color: #6B4E00; }
+.gm-login-alert.ok { background: #EAF5EE; border: 1px solid #C6E3D1; color: #155C3A; }
+.gm-login-alert b { font-weight: 800; }
+.gm-login-errlist { margin: 4px 0 0 !important; padding-left: 18px !important; }
+.gm-login-errlist li { margin: 0 !important; padding: 0 !important; font-size: 13px !important; color: inherit !important; }
+/* register: password hint under the fields */
+.gm-login-hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: -2px 0 14px; }
+
+@media (max-width: 900px) {
+    div[data-testid="stColumn"]:has(.gm-login-brand) { display: none !important; }
+    div[data-testid="stHorizontalBlock"]:has(.gm-login-brand) { min-height: 0; }
+    .gm-login-mobile-brand { display: flex; }
+}
+
+/* ============================================================================
+   Reflection rating slider (components/reflection_learning.py): every step
+   labelled under the track instead of Streamlit's min/max only.
+   ============================================================================ */
+[class*="st-key-gm_rating_"] [data-testid="stSliderTickBar"] { display: none !important; }
+.gm-rating-ticks { position: relative; height: 22px; margin: -6px 0 4px; }
+.gm-rating-ticks span {
+    position: absolute; top: 0; transform: translateX(-50%);
+    font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.gm-rating-ticks span.on { color: var(--primary); font-weight: 800; }

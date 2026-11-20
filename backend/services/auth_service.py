@@ -10,6 +10,7 @@ import uuid
 from typing import Optional, Tuple, List
 from services.neo4j_service import get_neo4j_service
 from config.database import get_db_connection
+from config.mail import mail_enabled
 from psycopg2 import Error
 
 # Valid mastery-inference engine choices for users.inference_method.
@@ -21,34 +22,36 @@ INFERENCE_METHOD_MANUAL = "Manual"
 VALID_INFERENCE_METHODS = (INFERENCE_METHOD_DBN, INFERENCE_METHOD_MANUAL)
 DEFAULT_INFERENCE_METHOD = INFERENCE_METHOD_DBN
 
+EMAIL_NOT_VERIFIED_MESSAGE = "Please confirm your email first. Check your inbox for the confirmation link."
+
 
 class AuthenticationService:
     """Handles user authentication, registration, and password management."""
-    
+
     @staticmethod
     def hash_password(password: str) -> str:
         """
         Hash a password using bcrypt.
-        
+
         Args:
             password: Plain text password
-            
+
         Returns:
             Hashed password string
         """
         salt = bcrypt.gensalt(rounds=12)  # cost factor: higher = slower/safer against brute force
         hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
         return hashed.decode("utf-8")
-    
+
     @staticmethod
     def verify_password(password: str, password_hash: str) -> bool:
         """
         Verify a password against its hash.
-        
+
         Args:
             password: Plain text password
             password_hash: Hashed password from database
-            
+
         Returns:
             True if password matches, False otherwise
         """
@@ -56,15 +59,15 @@ class AuthenticationService:
             return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
         except Exception:
             return False
-    
+
     @staticmethod
     def email_exists(email: str) -> bool:
         """
         Check if email already exists in database.
-        
+
         Args:
             email: Email address to check
-            
+
         Returns:
             True if email exists, False otherwise
         """
@@ -82,55 +85,59 @@ class AuthenticationService:
         finally:
             if connection:
                 connection.close()
-    
+
     @staticmethod
     def register_user(full_name: str, email: str, password: str) -> Tuple[bool, str, Optional[str]]:
         """
         Register a new user.
-        
+
         Args:
             full_name: User's full name
             email: User's email address
             password: User's password (will be hashed)
-            
+
         Returns:
             Tuple of (success: bool, message: str, user_id: Optional[str])
         """
         # Validate inputs
         if not full_name or not full_name.strip():
             return False, "Full name is required", None
-        
+
         if not email or not email.strip():
             return False, "Email is required", None
-        
+
         if not password or len(password) < 8:  # minimum password length policy
             return False, "Password must be at least 8 characters", None
-        
+
         email = email.lower().strip()
         full_name = full_name.strip()
-        
+
         # Check if email already exists
         if AuthenticationService.email_exists(email):
             return False, "Email already registered", None
-        
+
         # Hash password
         password_hash = AuthenticationService.hash_password(password)
-        
+
         # Create user record
         connection = None
         try:
             user_id = str(uuid.uuid4())
             connection = get_db_connection()
             cursor = connection.cursor()
-            
+
+            # With email sending on, a new account starts unconfirmed and
+            # must open the emailed link before it can sign in. With it off
+            # (no mail.ini), accounts are usable immediately, as before.
+            needs_verification = mail_enabled()
             cursor.execute(
                 """
-                INSERT INTO users (id, full_name, email, password_hash)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO users (id, full_name, email, password_hash, email_verified)
+                VALUES (%s, %s, %s, %s, %s)
                 """,
-                (user_id, full_name, email, password_hash)
+                (user_id, full_name, email, password_hash, not needs_verification)
             )
-            
+
             connection.commit()
             cursor.close()
 
@@ -142,8 +149,20 @@ class AuthenticationService:
             except Exception as e:
                 print(f"Warning: Failed to sync user {user_id} to Neo4j: {str(e)}")
 
+            if needs_verification:
+                from services.account_email_service import send_verification_email
+                try:
+                    send_verification_email(user_id, full_name, email)
+                except Exception as e:
+                    print(f"Warning: Failed to send verification email to {email}: {str(e)}")
+                    return True, (
+                        "Account created, but the confirmation email could not be sent. "
+                        "Sign in to request a new one."
+                    ), user_id
+                return True, "Account created. Check your email for a confirmation link before signing in.", user_id
+
             return True, "User registered successfully", user_id
-            
+
         except Error as e:
             if connection:
                 connection.rollback()
@@ -151,33 +170,33 @@ class AuthenticationService:
         finally:
             if connection:
                 connection.close()
-    
+
     @staticmethod
     def login_user(email: str, password: str) -> Tuple[bool, str, Optional[dict]]:
         """
         Authenticate user login.
-        
+
         Args:
             email: User's email address
             password: User's password
-            
+
         Returns:
             Tuple of (success: bool, message: str, user_data: Optional[dict])
         """
         if not email or not password:
             return False, "Email and password are required", None
-        
+
         email = email.lower().strip()
-        
+
         connection = None
         try:
             connection = get_db_connection()
             cursor = connection.cursor()
-            
+
             cursor.execute(
                 """
                 SELECT id, full_name, email, password_hash, profile_photo_path,
-                       onboarding_completed, target_role, target_level
+                       onboarding_completed, target_role, target_level, email_verified
                 FROM users WHERE email = %s
                 """,
                 (email,)
@@ -190,11 +209,16 @@ class AuthenticationService:
                 return False, "Invalid email or password", None
 
             (user_id, full_name, db_email, password_hash, profile_photo_path,
-             onboarding_completed, target_role, target_level) = result
+             onboarding_completed, target_role, target_level, email_verified) = result
 
             # Verify password
             if not AuthenticationService.verify_password(password, password_hash):
                 return False, "Invalid email or password", None
+
+            # Checked only after the password, so this never reveals whether
+            # an address is registered to someone who can't sign in as it.
+            if not email_verified and mail_enabled():
+                return False, EMAIL_NOT_VERIFIED_MESSAGE, None
 
             user_data = {
                 "id": str(user_id),
@@ -205,15 +229,15 @@ class AuthenticationService:
                 "target_role": target_role,
                 "target_level": target_level,
             }
-            
+
             return True, "Login successful", user_data
-            
+
         except Error as e:
             return False, f"Login failed: {str(e)}", None
         finally:
             if connection:
                 connection.close()
-    
+
     @staticmethod
     def get_user_by_id(user_id: str) -> Optional[dict]:
         """

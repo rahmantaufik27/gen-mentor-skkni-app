@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  /* Layout: a navy hero whose visual IS the product (the C1-C6 level bar
+     against a target), then the four-stage path, what's inside, the six
+     units, and a closing call to action. Single look on purpose: it uses
+     the live app's own navy / gold / teal system, which has no dark theme. */
+  :root {
+    --navy: #0B1C2E;
+    --navy-2: #12283F;
+    --gold: #FFC600;
+    --gold-deep: #8A6400;
+    --teal: #0E7490;
+    --green: #1C7A4D;
+    --paper: #F6F6F3;
+    --card: #FFFFFF;
+    --soft: #EFEFEA;
+    --text: #1C2127;
+    --muted: #6B6F76;
+    --border: #E3E3DE;
+    --font: "Montserrat", -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--text); font-family: var(--font); line-height: 1.55; }
+  .wrap {
+    max-width: 1120px; margin: 0 auto;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+  /* ---------- top bar + hero (navy) ---------- */
+  .top { background: var(--navy); color: #fff; }
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 40px; height: 40px; border-radius: 10px; background: var(--gold); display: grid; place-items: center; flex-shrink: 0; }
+  .brand-name { font-weight: 800; font-size: 18px; letter-spacing: .01em; }
+  .brand-tag { font-size: 11px; color: rgba(255,255,255,.6); }
+  .nav-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .nav-link { font-size: 13.5px; font-weight: 600; color: rgba(255,255,255,.8); text-decoration: none; padding: 8px 6px; }
+  .nav-link:hover { color: #fff; }
+
+  .btn { font-family: var(--font); font-weight: 800; font-size: 14px; border-radius: 10px; padding: 12px 22px;
+         border: 1.5px solid transparent; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn.gold { background: var(--gold); color: var(--navy); }
+  .btn.gold:hover { filter: brightness(.95); }
+  .btn.line { background: transparent; color: #fff; border-color: rgba(255,255,255,.4); }
+  .btn.line:hover { border-color: #fff; }
+  .btn.navy { background: var(--navy); color: #fff; }
+  .btn.sm { padding: 9px 16px; font-size: 13px; }
+
+  .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; align-items: center; padding-block: 44px 72px; }
+  @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 32px; padding-block: 28px 52px; } }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin: 0 0 14px; }
+  h1 { font-size: clamp(34px, 5.2vw, 56px); line-height: 1.06; font-weight: 900; margin: 0; letter-spacing: -.02em; text-wrap: balance; }
+  h1 em { font-style: normal; color: var(--gold); }
+  .lede { font-size: 17px; color: rgba(255,255,255,.78); margin: 20px 0 28px; max-width: 54ch; }
+  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .cta-note { font-size: 12.5px; color: rgba(255,255,255,.55); margin-top: 14px; }
+
+  /* hero visual: the product's own level bar */
+  .sample { background: var(--card); color: var(--text); border-radius: 16px; padding: 22px; box-shadow: 0 24px 60px rgba(0,0,0,.35); min-width: 0; }
+  .sample-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+  .sample-title { font-weight: 800; font-size: 15px; color: var(--navy); }
+  .sample-tag { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .sample-sub { font-size: 12.5px; color: var(--muted); margin-bottom: 18px; }
+  .row { padding: 11px 0; border-top: 1px solid var(--border); }
+  .row:first-of-type { border-top: none; }
+  .row-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .code { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--navy); }
+  .chip { font-size: 10.5px; font-weight: 800; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+  .chip.go { background: rgba(255,198,0,.24); color: var(--gold-deep); }
+  .chip.met { background: rgba(28,122,77,.13); color: var(--green); }
+  .track { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .seg { position: relative; height: 24px; border-radius: 5px; background: var(--soft); display: grid; place-items: center;
+         font-size: 10.5px; font-weight: 700; color: var(--muted); }
+  .seg.on { background: var(--gold); color: var(--navy); }
+  .seg.met { background: var(--green); color: #fff; }
+  .seg.target { box-shadow: 0 0 0 2px var(--navy); }
+  .seg.target::after { content: "Target"; position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+                       font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--navy); }
+  @media (prefers-reduced-motion: no-preference) {
+    .seg.on, .seg.met { animation: fill .5s ease-out backwards; animation-delay: calc(var(--i) * 90ms + 250ms); }
+    @keyframes fill { from { background: var(--soft); color: var(--muted); } }
+  }
+  .sample-foot { margin-top: 14px; font-size: 12px; color: var(--muted); }
+
+  /* ---------- sections ---------- */
+  section { padding-block: 64px; }
+  .kicker { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--teal); margin: 0 0 10px; }
+  h2 { font-size: clamp(24px, 3.2vw, 34px); line-height: 1.15; font-weight: 800; color: var(--navy); margin: 0 0 12px; letter-spacing: -.01em; text-wrap: balance; }
+  .intro { font-size: 16px; color: var(--muted); max-width: 62ch; margin: 0 0 34px; }
+
+  /* the path: a real sequence, so it is numbered */
+  .path { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--card); overflow: hidden; }
+  @media (max-width: 900px) { .path { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .path { grid-template-columns: 1fr; } }
+  .stage { padding: 24px 22px 26px; border-left: 1px solid var(--border); position: relative; }
+  .stage:first-child { border-left: none; }
+  @media (max-width: 900px) { .stage { border-left: none; border-top: 1px solid var(--border); } .stage:nth-child(-n+2) { border-top: none; } .stage:nth-child(even) { border-left: 1px solid var(--border); } }
+  @media (max-width: 560px) { .stage:nth-child(2) { border-top: 1px solid var(--border); } .stage:nth-child(even) { border-left: none; } }
+  .stage-n { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--gold-deep); background: rgba(255,198,0,.22); border-radius: 6px; padding: 2px 8px; display: inline-block; }
+  .stage h3 { font-size: 17px; font-weight: 800; color: var(--navy); margin: 14px 0 8px; }
+  .stage p { font-size: 13.5px; color: var(--muted); margin: 0; }
+  .stage .fact { margin-top: 14px; font-size: 12px; font-weight: 700; color: var(--teal); }
+
+  /* what's inside */
+  .inside { background: var(--card); border-block: 1px solid var(--border); }
+  .features { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 32px; }
+  @media (max-width: 900px) { .features { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 560px) { .features { grid-template-columns: 1fr; } }
+  .feature { border-top: 3px solid var(--navy); padding-top: 16px; }
+  .feature:nth-child(3n+2) { border-top-color: var(--teal); }
+  .feature:nth-child(3n) { border-top-color: var(--gold); }
+  .feature h3 { font-size: 16px; font-weight: 800; color: var(--navy); margin: 0 0 6px; }
+  .feature p { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+  /* career ladder: KKNI levels 2-9, click a level to see its roles */
+  .ladder-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 26px 24px; }
+  .rail-scroll { overflow-x: auto; padding: 6px 4px 10px; }
+  .rail { display: grid; grid-template-columns: repeat(8, minmax(84px, 1fr)); min-width: 700px; position: relative; }
+  .rail::before { content: ""; position: absolute; left: 6.25%; right: 6.25%; top: 21px; height: 3px; background: var(--soft); border-radius: 2px; }
+  .rail::after { content: ""; position: absolute; left: 6.25%; width: 25%; top: 21px; height: 3px; background: var(--gold); border-radius: 2px; }
+  .node { position: relative; z-index: 1; background: none; border: none; cursor: pointer; font-family: var(--font);
+          display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0 4px; color: var(--muted); }
+  .node .dot { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+               font-weight: 800; font-size: 14px; background: var(--card); border: 2.5px solid var(--border); color: var(--muted); }
+  .node .lbl { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .node.passed .dot { border-color: var(--gold); color: var(--gold-deep); }
+  .node.active .dot { background: var(--gold); border-color: var(--gold); color: var(--navy); }
+  .node.active .lbl { color: var(--gold-deep); }
+  .node.top .dot { border-color: var(--navy); color: var(--navy); }
+  .node[aria-pressed="true"] .dot { box-shadow: 0 0 0 4px rgba(14,116,144,.25); border-color: var(--teal); }
+  .node[aria-pressed="true"].active .dot { border-color: var(--gold); box-shadow: 0 0 0 4px rgba(255,198,0,.35); }
+  .node[aria-pressed="true"] .lbl { color: var(--navy); }
+
+  .level-panel { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 20px;
+                 display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; }
+  @media (max-width: 700px) { .level-panel { grid-template-columns: 1fr; } }
+  .level-name { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); }
+  .level-status { display: inline-block; margin-left: 8px; font-size: 10.5px; font-weight: 800; letter-spacing: .05em;
+                  text-transform: uppercase; border-radius: 999px; padding: 3px 10px; }
+  .level-status.open { background: rgba(255,198,0,.24); color: var(--gold-deep); }
+  .level-status.later { background: var(--soft); color: var(--muted); }
+  .roles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .role { font-size: 13.5px; font-weight: 700; border-radius: 9px; padding: 8px 14px; background: var(--soft); color: var(--text); }
+  .role.live { background: var(--navy); color: #fff; }
+  .level-note { font-size: 13.5px; color: var(--muted); margin: 12px 0 0; max-width: 64ch; }
+  .ladder-src { font-size: 12px; color: var(--muted); margin: 14px 0 0; }
+
+  /* units */
+  .units-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 44px; align-items: start; }
+  @media (max-width: 900px) { .units-grid { grid-template-columns: 1fr; gap: 24px; } }
+  .unit-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--card); overflow: hidden; }
+  .unit-list li { display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: 14px; padding: 14px 18px; border-top: 1px solid var(--border); align-items: baseline; }
+  .unit-list li:first-child { border-top: none; }
+  @media (max-width: 520px) { .unit-list li { grid-template-columns: 1fr; gap: 2px; } }
+  .unit-list .code { font-size: 12.5px; }
+  .unit-list .name { font-size: 14px; color: var(--text); }
+  .levels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+  .lvl { font-family: var(--mono); font-size: 12px; font-weight: 700; border-radius: 6px; padding: 4px 9px; background: var(--soft); color: var(--muted); }
+  .lvl.t { background: var(--navy); color: #fff; }
+  .small { font-size: 13px; color: var(--muted); margin-top: 12px; }
+
+  /* closing */
+  .close { background: var(--navy); color: #fff; }
+  .close-in { display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .close h2 { color: #fff; margin: 0 0 6px; }
+  .close p { margin: 0; color: rgba(255,255,255,.72); font-size: 15px; max-width: 56ch; }
+  footer { background: var(--navy); color: rgba(255,255,255,.5); font-size: 12.5px; border-top: 1px solid rgba(255,255,255,.12); }
+  footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 18px; }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="wrap">
+    <div class="nav">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 4 2 9l10 5 8-4v6h2V9L12 4Z" fill="#0B1C2E"/><path d="M6 12.6V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-3.4l-6 3-6-3Z" fill="#0B1C2E"/></svg>
+        </div>
+        <div>
+          <div class="brand-name">GAMASKILL</div>
+          <div class="brand-tag">Gateway for Adaptive Mastery and Advancement of Skills</div>
+        </div>
+      </div>
+      <div class="nav-actions">
+        <a class="nav-link" href="#career">Career path</a>
+        <a class="nav-link" href="#how">How it works</a>
+        <a class="nav-link" href="#inside">What's inside</a>
+        <a class="nav-link" href="#units">Units</a>
+        <a class="btn line sm" href="/login" target="_top">Sign In</a>
+        <a class="btn gold sm" href="/register" target="_top">Create Account</a>
+      </div>
+    </div>
+
+    <div class="hero">
+      <div>
+        <p class="eyebrow">Personalized Learning based on Adult Learning Principle to Improve the Competencies of Software Engineers</p>
+        <h1>Know your level on every unit. <em>Then close the gap.</em></h1>
+        <p class="lede">GAMASKILL tests where you stand on each SKKNI competency unit, then gives you personalized reading material and practice questions for exactly the units still below target, until you are ready for the final test.</p>
+      </div>
+
+      <div class="sample" aria-label="Example of a learner's level on three units">
+        <div class="sample-head">
+          <div class="sample-title">Your level on each unit</div>
+          <div class="sample-tag">Example</div>
+        </div>
+        <div class="sample-sub">Filled = level reached. Outlined = level you need.</div>
+        <div id="sampleRows"></div>
+        <div class="sample-foot">Levels follow Bloom's taxonomy, C1 (remember) to C6 (create).</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section id="career">
+  <div class="wrap">
+    <p class="kicker">Career path</p>
+    <h2>See where this level sits on the ladder</h2>
+    <p class="intro">Digital product development roles are mapped across KKNI levels 2 to 9. Pick a level to see its roles. GAMASKILL currently teaches Level 4.</p>
+    <div class="ladder-card">
+      <div class="rail-scroll">
+        <div class="rail" id="rail" role="group" aria-label="KKNI levels 2 to 9"></div>
+      </div>
+      <div class="level-panel" id="levelPanel" aria-live="polite"></div>
+    </div>
+    <p class="ladder-src">Levels and role names follow the SKKNI occupational map for digital product development (Kepmenaker No. 282/2016).</p>
+  </div>
+</section>
+
+<section id="how" style="padding-top:0">
+  <div class="wrap">
+    <p class="kicker">How it works</p>
+    <h2>Four stages, in this order</h2>
+    <p class="intro">Each stage unlocks the next. You always see which units are done and which still need work.</p>
+    <div class="path">
+      <div class="stage">
+        <span class="stage-n">01</span>
+        <h3>Pre-Test</h3>
+        <p>One placement test across all six units shows your starting level on each.</p>
+        <div class="fact">36 questions · taken once</div>
+      </div>
+      <div class="stage">
+        <span class="stage-n">02</span>
+        <h3>Learn</h3>
+        <p>Reading materials are recommended for the units below target, with lessons generated per subtopic from the SKKNI reference material.</p>
+        <div class="fact">Only your weak units</div>
+      </div>
+      <div class="stage">
+        <span class="stage-n">03</span>
+        <h3>Practice</h3>
+        <p>Practice sessions draw questions from your weakest units. Every session updates your level, and you can repeat as often as you like.</p>
+        <div class="fact">Repeat until every unit is at target</div>
+      </div>
+      <div class="stage">
+        <span class="stage-n">04</span>
+        <h3>Post-Test</h3>
+        <p>Opens when all six units reach their target level, and confirms the progress you made.</p>
+        <div class="fact">Pass = all units mastered</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="inside" class="inside">
+  <div class="wrap">
+    <p class="kicker">What's inside</p>
+    <h2>Everything you need between the two tests</h2>
+    <p class="intro">The tools sit around the same six units, so notes, questions and discussions stay tied to what you are studying.</p>
+    <div class="features">
+      <div class="feature"><h3>Reading Materials</h3><p>Slides and generated lessons per subtopic, recommended from your mastery gaps.</p></div>
+      <div class="feature"><h3>Practice Questions</h3><p>Questions matched to each unit's level, with a navigator to skip, revisit and change answers.</p></div>
+      <div class="feature"><h3>Data Analytics</h3><p>One bar per unit shows the level reached, the target, and how far you moved since the Pre-Test.</p></div>
+      <div class="feature"><h3>Learning Assistant</h3><p>A chat tutor available on every page for questions about the material.</p></div>
+      <div class="feature"><h3>Notes and Reflection</h3><p>Save key points and questions as you study, then turn a session into an action plan.</p></div>
+      <div class="feature"><h3>Discussion</h3><p>Ask and answer questions with other learners, unit by unit.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="units">
+  <div class="wrap units-grid">
+    <div>
+      <p class="kicker">Level 4 · Assistant Web Developer · the competency units</p>
+      <h2>Six units from the national standard</h2>
+      <p class="intro" style="margin-bottom:0">The units come from SKKNI, Indonesia's national work competency standard, for the Assistant Web Developer role. Each unit has a target level you need to reach.</p>
+      <div class="levels" aria-label="Levels C1 to C6, target C4">
+        <span class="lvl">C1</span><span class="lvl">C2</span><span class="lvl">C3</span><span class="lvl t">C4 target</span><span class="lvl">C5</span><span class="lvl">C6</span>
+      </div>
+      <p class="small">A unit counts as mastered when your level reaches its target.</p>
+    </div>
+    <ul class="unit-list">
+      <li><span class="code">J.620100.005.02</span><span class="name">Mengimplementasikan user interface</span></li>
+      <li><span class="code">J.620100.010.01</span><span class="name">Menerapkan perintah eksekusi bahasa pemrograman berbasis teks, grafik, dan multimedia</span></li>
+      <li><span class="code">J.620100.015.01</span><span class="name">Menyusun fungsi, file atau sumber daya pemrograman dalam organisasi yang rapi</span></li>
+      <li><span class="code">J.620100.016.01</span><span class="name">Menulis kode dengan prinsip sesuai guidelines dan best practices</span></li>
+      <li><span class="code">J.620100.017.02</span><span class="name">Mengimplementasikan pemrograman terstruktur</span></li>
+      <li><span class="code">J.620100.019.02</span><span class="name">Menggunakan library atau komponen pre-existing</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="close">
+  <div class="wrap close-in">
+    <div>
+      <h2>Start with the Pre-Test</h2>
+      <p>Create an account, take the placement test, and see your level on all six units.</p>
+    </div>
+    <div class="cta-row">
+      <a class="btn gold" href="/register" target="_top">Create Account</a>
+      <a class="btn line" href="/login" target="_top">Sign In</a>
+    </div>
+  </div>
+</section>
+<footer><div class="wrap"><span>GAMASKILL · Gateway for Adaptive Mastery and Advancement of Skills</span><span>&copy; DTETI UGM 2026</span></div></footer>
+
+<script>
+  // Career ladder - same data as the app's onboarding (data/skkni_ladder.py)
+  const LADDER = {
+    2: ["Programmer Staff", "Multimedia Librarian Staff"],
+    3: ["Junior Front-End Programmer", "Junior Back-End Programmer", "Junior Technical Support"],
+    4: ["Assistant Web Developer"],
+    5: ["Associate Application Programmer", "Associate Mobile Programmer", "Associate Programmer"],
+    6: ["Frontend Developer", "Backend Developer", "Web Developer"],
+    7: ["Software Engineer Manager", "Full Stack Developer", "Requirements Engineer"],
+    8: ["Lead Programmer"],
+    9: ["Chief Technology Officer", "Chief Business Applications Officer"],
+  };
+  const ACTIVE_LEVEL = 4;
+  const rail = document.getElementById("rail");
+  const panel = document.getElementById("levelPanel");
+
+  function showLevel(level) {
+    rail.querySelectorAll(".node").forEach((n) => n.setAttribute("aria-pressed", String(Number(n.dataset.level) === level)));
+    const live = level === ACTIVE_LEVEL;
+    const roles = LADDER[level].map((r) => `<span class="role ${live ? "live" : ""}">${r}</span>`).join("");
+    const note = live
+      ? "Available now: six SKKNI units, a Pre-Test, practice sessions and a Post-Test."
+      : level < ACTIVE_LEVEL
+        ? "Earlier step on the ladder. Shown for orientation; GAMASKILL has no lessons for this level."
+        : "A later step on the ladder. Shown so you can see where Level 4 leads; lessons for this level are not available yet.";
+    panel.innerHTML = `
+      <div>
+        <span class="level-name">KKNI Level ${level}</span>
+        <span class="level-status ${live ? "open" : "later"}">${live ? "Available now" : "Preview"}</span>
+        <div class="roles">${roles}</div>
+        <p class="level-note">${note}</p>
+      </div>
+      ${live ? '<a class="btn navy" href="/register" target="_top">Start at Level 4</a>' : '<a class="btn navy" href="#" data-goto="4">See Level 4</a>'}`;
+    const back = panel.querySelector("[data-goto]");
+    fitFrame();
+    if (back) back.addEventListener("click", (e) => { e.preventDefault(); showLevel(ACTIVE_LEVEL); });
+  }
+
+  Object.keys(LADDER).map(Number).forEach((level) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.dataset.level = level;
+    b.className = "node" + (level < ACTIVE_LEVEL ? " passed" : level === ACTIVE_LEVEL ? " active" : level === 9 ? " top" : "");
+    b.innerHTML = `<span class="dot">L${level}</span><span class="lbl">${level === ACTIVE_LEVEL ? "You start here" : "Level " + level}</span>`;
+    b.addEventListener("click", () => showLevel(level));
+    rail.appendChild(b);
+  });
+  showLevel(ACTIVE_LEVEL);
+
+  // This page is rendered inside an iframe (see pages/landing.py): keep the
+  // iframe exactly as tall as its content so the browser page scrolls, not
+  // the frame, and make the in-page menu links scroll the outer page.
+  function fitFrame() {
+    // body height, not the document's: the document is always at least as
+    // tall as the frame itself, so it could never shrink the frame.
+    if (window.frameElement) window.frameElement.style.height = Math.ceil(document.body.getBoundingClientRect().height) + "px";
+  }
+  // The frame is sandboxed without top-navigation, so a plain link can't
+  // leave the page. Clicking a link created in the outer page can.
+  document.addEventListener("click", (e) => {
+    const link = e.target.closest('a[target="_top"]');
+    if (!link) return;
+    e.preventDefault();
+    const outer = window.parent.document;
+    const a = outer.createElement("a");
+    a.href = link.getAttribute("href");
+    outer.body.appendChild(a);
+    a.click();
+  });
+  window.addEventListener("load", fitFrame);
+  window.addEventListener("resize", fitFrame);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitFrame);
+  document.querySelectorAll('a.nav-link[href^="#"]').forEach((link) => link.addEventListener("click", (e) => {
+    e.preventDefault();
+    const target = document.querySelector(link.getAttribute("href"));
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
+
+  const SAMPLE = [["J.620100.010.01", 4], ["J.620100.017.02", 2], ["J.620100.005.02", 1]];
+  const TARGET = 4;
+  document.getElementById("sampleRows").innerHTML = SAMPLE.map(([code, level]) => {
+    const met = level >= TARGET;
+    let segs = "";
+    for (let i = 1; i <= 6; i++) {
+      const cls = [i <= level ? (met ? "met" : "on") : "", i === TARGET ? "target" : ""].join(" ");
+      segs += `<div class="seg ${cls}" style="--i:${i}">C${i}</div>`;
+    }
+    const left = TARGET - level;
+    const chip = met ? `<span class="chip met">Target met</span>` : `<span class="chip go">${left} level${left > 1 ? "s" : ""} to go</span>`;
+    return `<div class="row"><div class="row-top"><span class="code">${code}</span>${chip}</div><div class="track">${segs}</div></div>`;
+  }).join("");
+</script>
+</body>
+</html>

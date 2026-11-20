@@ -7,7 +7,20 @@ or model needs no code change:
 
     OLLAMA_HOST    default http://localhost:11434
     OLLAMA_MODEL   default qwen3:4b-instruct
-    OLLAMA_TIMEOUT default 120 (seconds, per chat request)
+    OLLAMA_TIMEOUT default 480 (seconds, per chat request). Raised twice:
+                   120 -> 240 -> 480. A direct /api/chat timing probe on
+                   this machine measured ~12 tokens/sec generation
+                   (eval_duration) on this CPU-only 4B model - there's no
+                   GPU acceleration here, so that's a hard throughput
+                   ceiling, not transient load. The DETAILED learning
+                   material prompts in materials_service.py can easily run
+                   2000-4000+ output tokens, which is 170-330+s of pure
+                   generation time alone at that rate, on top of several
+                   more seconds evaluating the long (~6k-token) reference
+                   prompt. 480s gives headroom above the worst realistic
+                   case; it does not make generation itself any faster -
+                   only a faster model/host or shorter requested output
+                   would do that.
 """
 
 import json
@@ -31,9 +44,9 @@ class OllamaProvider(LLMProvider):
         self.host = (host or os.environ.get("OLLAMA_HOST", "http://localhost:11434")).rstrip("/")
         self.model = model or os.environ.get("OLLAMA_MODEL", "qwen3:4b-instruct")
         try:
-            self.timeout = timeout if timeout is not None else float(os.environ.get("OLLAMA_TIMEOUT", "120"))
+            self.timeout = timeout if timeout is not None else float(os.environ.get("OLLAMA_TIMEOUT", "480"))
         except ValueError:
-            self.timeout = 120.0
+            self.timeout = 480.0
 
     @property
     def name(self) -> str:

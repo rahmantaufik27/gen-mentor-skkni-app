@@ -404,10 +404,23 @@ class MasteryService:
                         "mastery_status": mastery_status,
                     })
 
+                answer_rows = execute_query(
+                    """
+                    SELECT COUNT(*), COALESCE(SUM(CASE WHEN is_correct THEN 1 ELSE 0 END), 0)
+                    FROM quiz_attempt_details
+                    WHERE attempt_id = %s
+                    """,
+                    (attempt_id,),
+                    fetch=True,
+                ) or [(0, 0)]
+                total_questions, correct_answers = answer_rows[0]
+
                 stages[stage] = {
                     "completed_at": completed_at.isoformat() if completed_at else None,
                     "status": "PASS" if passed else "FAIL",
                     "score": float(score) if score is not None else 0,
+                    "total_questions": int(total_questions or 0),
+                    "correct_answers": int(correct_answers or 0),
                     "units": units,
                 }
 

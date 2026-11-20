@@ -208,10 +208,28 @@ def record_activity(activity_type: str, metadata: dict = None) -> dict:
         return {"success": False, "error": str(e)}
 
 
-def record_material_view(unit_code: str = None) -> dict:
-    """Count that the user opened a material (see reading_materials.py)."""
-    metadata = {"unit_code": unit_code} if unit_code else None
+def record_material_view(unit_code: str = None, material_id: str = None) -> dict:
+    """Record that the user opened a material (see reading_materials.py).
+    material_id is what lets the "Read" mark survive logout - see
+    get_read_material_ids below."""
+    metadata = {k: v for k, v in (("unit_code", unit_code), ("material_id", material_id)) if v} or None
     return record_activity(ACTIVITY_MATERIAL_VIEW, metadata)
+
+
+def get_read_material_ids() -> dict:
+    """{material id: when it was first opened (ISO)} for the current user,
+    from the server. Empty on any failure - the cards then show as unread."""
+    try:
+        user_id = st.session_state.get("userId")
+        if not user_id:
+            return {}
+        response = httpx.get(f"{backend_endpoint}api/learning-path/read-materials",
+                             params={"user_id": user_id}, timeout=15)
+        if response.status_code == 200:
+            return dict(response.json().get("materials", {}))
+    except Exception:
+        pass
+    return {}
 
 
 def record_chatbot_attempt() -> dict:

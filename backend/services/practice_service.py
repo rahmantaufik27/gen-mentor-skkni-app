@@ -256,6 +256,12 @@ class PracticeService:
             is_correct = selected_answer.upper() == question["correct_option_id"]
             score = QuizGenerator.BLOOM_SCORES.get(question["bloom_level"], 0) if is_correct else 0
 
+            # Upsert by question_index (not a plain append) so resubmitting
+            # an already-answered question - e.g. the learner revisits it
+            # via the Question Navigator and changes their choice - replaces
+            # its old entry instead of adding a second one, which would
+            # otherwise double-count it in correct_answers/total_score.
+            session["answers"] = [a for a in session["answers"] if a["question_index"] != question_index]
             session["answers"].append({
                 "question_index": question_index,
                 "selected_answer": selected_answer.upper(),

@@ -47,7 +47,7 @@ def _format_date(iso_date: str) -> str:
 
 
 def render_save_button(source_type, source_id, snapshot_text, title=None, source_ref=None, saved_ids=None, key=None,
-                        use_container_width=True, icon_only=False):
+                        use_container_width=True, icon_only=False, material_icon=False):
     """
     Reusable Save-to-Notes / Remove-from-Notes toggle for one piece of content.
 
@@ -68,6 +68,8 @@ def render_save_button(source_type, source_id, snapshot_text, title=None, source
         icon_only:   show just 🔖/✅ instead of the "Save to Notes"/"Remove
                      from Notes" text - for tight spaces like the floating
                      chatbot widget (see components/chatbot_widget.py).
+        material_icon: show an outlined / filled bookmark icon instead of
+                     text (the Reading Materials card footer).
     """
     if not source_id or not snapshot_text:
         return
@@ -75,7 +77,9 @@ def render_save_button(source_type, source_id, snapshot_text, title=None, source
         saved_ids = get_saved_source_ids(source_type)
 
     is_saved = source_id in saved_ids
-    if icon_only:
+    if material_icon:
+        label = ":material/bookmark_added:" if is_saved else ":material/bookmark_border:"
+    elif icon_only:
         label = "✅" if is_saved else "🔖"
     else:
         label = "Remove from Notes" if is_saved else "Save to Notes"

@@ -68,12 +68,27 @@ if "current_page" not in st.session_state:
 gating = get_learning_gating()
 
 # ============================================================================
+# EXAM FULLSCREEN MODE - while a Test (Pre-Test/Post-Test) or Practice
+# session is active (from the moment it's started through its results
+# screen, until the learner clicks an Exit/navigation button that resets
+# *_started back to False), the sidebar nav is skipped entirely so nothing
+# else is reachable except that page's own "Exit Exam" button. Started
+# stays True across start -> progress -> results, which is exactly the
+# span this should cover.
+# ============================================================================
+exam_fullscreen_active = (
+    st.session_state.get("test_started", False)
+    or st.session_state.get("practice_started", False)
+)
+
+# ============================================================================
 # LEFT NAVIGATION SIDEBAR
 # ============================================================================
-render_sidebar_nav(
-    active=st.session_state.current_page,
-    submenus={"learning_path": get_learning_path_submenu()},
-)
+if not exam_fullscreen_active:
+    render_sidebar_nav(
+        active=st.session_state.current_page,
+        submenus={"learning_path": get_learning_path_submenu()},
+    )
 
 # ============================================================================
 # TOP HEADER (title + user chip + logout)
@@ -232,12 +247,5 @@ else:  # profile (default)
 # page branching above, so it's visible on non-assessment pages - see
 # components/chatbot_widget.py for why.
 # ============================================================================
-assessment_session_active = (
-    st.session_state.get("test_started", False)
-    and not st.session_state.get("test_completed", False)
-) or (
-    st.session_state.get("practice_started", False)
-    and not st.session_state.get("practice_completed", False)
-)
-if not assessment_session_active:
+if not exam_fullscreen_active:
     render_chatbot_widget()

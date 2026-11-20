@@ -129,7 +129,7 @@ def create_app(config=None):
     # Initialize routes
     init_quiz_routes(app, controller)
     init_materials_routes(app, materials_controller)
-    init_admin_routes(app)
+    init_admin_routes(app, quiz_service, practice_service)
     init_practice_routes(app, practice_controller)
     init_chatbot_routes(app, chatbot_controller)
     init_learning_path_stats_routes(app, stats_controller)

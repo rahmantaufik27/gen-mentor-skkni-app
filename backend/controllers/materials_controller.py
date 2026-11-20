@@ -46,3 +46,23 @@ class MaterialsController:
             return {"success": True, **result}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def list_subtopics(self, unit_code: str, competency_name: str) -> dict:
+        """List one short, generated title per reference group for a unit."""
+        try:
+            result = self.materials_service.list_subtopics(unit_code, competency_name)
+            return {"success": True, **result}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def generate_subtopic_material(
+        self, unit_code: str, competency_name: str, subtopic_index: int, subtopic_title: str
+    ) -> dict:
+        """Generate a learning material for just one subtopic (reference group)."""
+        try:
+            result = self.materials_service.generate_subtopic_material(
+                unit_code, competency_name, subtopic_index, subtopic_title
+            )
+            return {"success": True, **result}
+        except Exception as e:
+            return {"success": False, "error": str(e)}

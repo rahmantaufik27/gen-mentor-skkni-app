@@ -150,10 +150,19 @@ def _render_reflection_question(question: dict, saved: dict):
     if qtype == "rating":
         lo, hi = int(question.get("min", 1)), int(question.get("max", 5))
         default_val = int(saved["answer_number"]) if (has_saved and saved.get("answer_number") is not None) else lo
-        st.slider(
-            "Your rating", min_value=lo, max_value=hi, value=default_val,
-            key=widget_key, label_visibility="collapsed",
-        )
+        # Streamlit only labels the two ends of a slider; the container hides
+        # that tick bar (main.css, .gm-rating) and draws every step instead.
+        with st.container(key=f"gm_rating_{qkey}"):
+            current = st.slider(
+                "Your rating", min_value=lo, max_value=hi, value=default_val,
+                key=widget_key, label_visibility="collapsed",
+            )
+            span = max(hi - lo, 1)
+            ticks = "".join(
+                f'<span class="{"on" if v == current else ""}" style="left:{(v - lo) / span * 100:.4f}%">{v}</span>'
+                for v in range(lo, hi + 1)
+            )
+            st.markdown(f'<div class="gm-rating-ticks">{ticks}</div>', unsafe_allow_html=True)
     else:
         default_text = saved.get("answer_text") if has_saved else ""
         st.text_area(

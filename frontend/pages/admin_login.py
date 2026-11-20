@@ -84,6 +84,7 @@ with st.container(border=True):
                 if result.get("success"):
                     st.session_state.admin_logged_in = True
                     st.session_state.admin_email = email.strip().lower()
+                    st.session_state.admin_token = result.get("token")
                     st.switch_page("pages/admin_dashboard.py")
                 else:
                     st.session_state.admin_login_error = result.get("error", "Admin login failed")

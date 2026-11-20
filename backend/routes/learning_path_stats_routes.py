@@ -30,6 +30,15 @@ def init_learning_path_stats_routes(app, controller: LearningPathStatsController
         status_code = 200 if result.get("success") else 400
         return jsonify(result), status_code
 
+    @learning_path_stats_bp.route("/read-materials", methods=["GET"])
+    def get_read_materials():
+        """Ids of the materials a user has opened (drives the "Read" mark on material cards)."""
+        user_id = request.args.get("user_id")
+        if not user_id:
+            return jsonify({"success": False, "error": "User ID required"}), 400
+        result = controller.get_read_materials(user_id)
+        return jsonify(result), 200 if result.get("success") else 400
+
     @learning_path_stats_bp.route("/activity", methods=["POST"])
     def record_activity():
         """Record one activity event (e.g. a material opened, a chatbot prompt)."""

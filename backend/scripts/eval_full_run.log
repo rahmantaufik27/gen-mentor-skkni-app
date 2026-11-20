@@ -1,0 +1,133 @@
+Evaluating 6 unit(s), up to all subtopic(s) each.
+This calls the real LLM provider once per subtopic - expect ~60-140s each.
+
+
+=== Unit J.620100.005.02 - Mengimplementasikan User Interface ===
+  10 subtopics listed in 23.2s
+  -> generating subtopic 1/10: Komponen Antarmuka Pengguna dan Fungsi Input
+     150.9s | id=True | headings=5 | leak=False | coverage=44% | words=991
+  -> generating subtopic 2/10: Struktur dan Alur Akses Komponen UI
+     134.5s | id=True | headings=5 | leak=False | coverage=43% | words=1020
+  -> generating subtopic 3/10: Prinsip Desain UI: Konsistensi, Kesederhanaan, dan Inklusivitas
+     146.2s | id=True | headings=3 | leak=False | coverage=41% | words=854
+  -> generating subtopic 4/10: Penggunaan Mock-up sebagai Media Komunikasi
+     150.0s | id=True | headings=5 | leak=False | coverage=79% | words=1031
+  -> generating subtopic 5/10: Peran Bootstrap dalam Pembuatan Layout Responsif
+     114.2s | id=True | headings=5 | leak=False | coverage=67% | words=962
+  -> generating subtopic 6/10: Implementasi UI dengan HTML, CSS, dan JavaScript
+     129.7s | id=True | headings=7 | leak=False | coverage=73% | words=867
+  -> generating subtopic 7/10: Komponen Dialog dan Pengelolaan Interaksi Pengguna
+     132.6s | id=True | headings=7 | leak=False | coverage=80% | words=1028
+  -> generating subtopic 8/10: Penggunaan Icon, Slider, dan Komponen Navigasi
+     155.8s | id=True | headings=3 | leak=False | coverage=65% | words=749
+  -> generating subtopic 9/10: Keterbacaan dan Aksesibilitas dalam Desain UI
+     117.2s | id=True | headings=5 | leak=False | coverage=40% | words=950
+  -> generating subtopic 10/10: Etika Desain dan Kepatuhan terhadap Prinsip Penggunaan UI
+     152.5s | id=True | headings=5 | leak=False | coverage=88% | words=1048
+
+=== Unit J.620100.010.01 - Menerapkan perintah eksekusi bahasa pemrograman berbasis teks, grafik, dan multimedia ===
+  8 subtopics listed in 23.1s
+  -> generating subtopic 1/8: Penulisan dan Eksekusi Kode Program dalam Bahasa Pemrograman
+     136.5s | id=True | headings=6 | leak=False | coverage=50% | words=1273
+  -> generating subtopic 2/8: Perbedaan Antara Assembler, Komplier, dan Interpreter
+     113.6s | id=True | headings=4 | leak=False | coverage=30% | words=1028
+  -> generating subtopic 3/8: Klasifikasi Bahasa Pemrograman Berdasarkan Tingkat dan Generasi
+     112.6s | id=True | headings=4 | leak=False | coverage=31% | words=1000
+  -> generating subtopic 4/8: Penggunaan JavaScript dalam Pengembangan Web dengan HTML
+     102.4s | id=True | headings=6 | leak=False | coverage=32% | words=800
+  -> generating subtopic 5/8: Peran XAMPP dalam Menjalankan dan Mengakses File PHP dan Database
+     121.0s | id=True | headings=6 | leak=False | coverage=20% | words=922
+  -> generating subtopic 6/8: Perbedaan Antara Perangkat Lunak Aplikasi dan Sistem
+     109.3s | id=True | headings=5 | leak=False | coverage=29% | words=1031
+  -> generating subtopic 7/8: Perkembangan Bahasa Pemrograman dari Generasi Pertama hingga Kelima
+     131.4s | id=True | headings=4 | leak=False | coverage=58% | words=1135
+  -> generating subtopic 8/8: Penerapan Bahasa Pemrograman dalam Pengembangan Perangkat Lunak Modern
+     141.7s | id=True | headings=6 | leak=False | coverage=66% | words=1182
+
+=== Unit J.620100.015.01 - Menyusun fungsi, file atau sumber daya pemrograman yang Lain dalam organisasi yang rapi ===
+  5 subtopics listed in 18.0s
+  -> generating subtopic 1/5: Penamaan Variabel, Fungsi, dan Konstanta yang Deskriptif
+     115.9s | id=True | headings=4 | leak=False | coverage=35% | words=786
+  -> generating subtopic 2/5: Penamaan File yang Konsisten dan Logis
+     97.6s | id=True | headings=7 | leak=False | coverage=62% | words=843
+  -> generating subtopic 3/5: Prinsip Penamaan dalam Struktur Pemrograman
+     103.1s | id=True | headings=9 | leak=False | coverage=59% | words=934
+  -> generating subtopic 4/5: Penggunaan Komentar Singkat dan Detail
+     128.8s | id=True | headings=6 | leak=False | coverage=49% | words=971
+  -> generating subtopic 5/5: Organisasi Folder dan Dokumentasi Sumber Daya
+     122.1s | id=True | headings=5 | leak=False | coverage=59% | words=1026
+
+=== Unit J.620100.016.01 - Menulis kode dengan prinsip sesuai guidelines dan best practices ===
+  8 subtopics listed in 22.7s
+  -> generating subtopic 1/8: Coding Guidelines dan Best Practices dalam Pemrograman
+     127.6s | id=True | headings=6 | leak=False | coverage=34% | words=833
+  -> generating subtopic 2/8: Penamaan Variabel, Konstanta, dan Fungsi yang Konsisten dan Jelas
+     126.0s | id=True | headings=5 | leak=False | coverage=35% | words=966
+  -> generating subtopic 3/8: Struktur Kode, Indentasi, dan Keterbacaan Program
+     128.7s | id=True | headings=6 | leak=False | coverage=53% | words=1145
+  -> generating subtopic 4/8: Pengelolaan Error dan Penggunaan Komentar dalam Sumber Kode
+     106.3s | id=True | headings=4 | leak=False | coverage=46% | words=873
+  -> generating subtopic 5/8: Efisiensi Penggunaan Sumber Daya dan Kompleksitas Algoritma
+     116.3s | id=True | headings=6 | leak=False | coverage=31% | words=1001
+  -> generating subtopic 6/8: Penggunaan Variabel Boolean, Global, dan Lokal dengan Awalan yang Jelas
+     120.4s | id=True | headings=7 | leak=False | coverage=84% | words=1065
+  -> generating subtopic 7/8: Pemilihan Paradigma Pemrograman dan Pengukuran Performansi
+     122.5s | id=True | headings=4 | leak=False | coverage=60% | words=981
+  -> generating subtopic 8/8: Penanganan Galat, Optimasi Waktu Eksekusi, dan Penggunaan Memori
+     154.2s | id=True | headings=5 | leak=False | coverage=88% | words=1240
+
+=== Unit J.620100.017.02 - Mengimplementasikan pemrograman terstruktur ===
+  9 subtopics listed in 20.9s
+  -> generating subtopic 1/9: Struktur Pengulangan dalam Bahasa Pemrograman
+     159.5s | id=True | headings=14 | leak=False | coverage=30% | words=995
+  -> generating subtopic 2/9: Perbedaan Perulangan Counted dan Uncounted Loop
+     139.4s | id=True | headings=4 | leak=False | coverage=36% | words=1045
+  -> generating subtopic 3/9: Fungsi dan Prosedur dalam Pemrograman
+     129.9s | id=True | headings=8 | leak=False | coverage=28% | words=949
+  -> generating subtopic 4/9: Variabel dan Tipe Data dalam Bahasa Pemrograman
+     106.8s | id=True | headings=6 | leak=False | coverage=50% | words=961
+  -> generating subtopic 5/9: Input dan Output pada Bahasa C++
+     95.1s | id=True | headings=5 | leak=False | coverage=56% | words=849
+  -> generating subtopic 6/9: Struktur Percabangan dalam C++
+     102.7s | id=True | headings=6 | leak=False | coverage=52% | words=891
+  -> generating subtopic 7/9: Koneksi ke Database MySQL dengan PHP
+     98.9s | id=True | headings=7 | leak=False | coverage=53% | words=791
+  -> generating subtopic 8/9: Penggunaan Form Input dalam PHP untuk Database
+     112.7s | id=True | headings=6 | leak=False | coverage=41% | words=888
+  -> generating subtopic 9/9: Struktur Program dan Komponen Dasar dalam C++
+     89.5s | id=True | headings=5 | leak=False | coverage=40% | words=784
+
+=== Unit J.620100.019.02 - Menggunakan library atau komponen pre-existing ===
+  4 subtopics listed in 12.5s
+  -> generating subtopic 1/4: Penggunaan Kode yang Dapat Diperulang (Reusable Code)
+     117.0s | id=True | headings=6 | leak=False | coverage=42% | words=956
+  -> generating subtopic 2/4: Pemilihan dan Lisensi Library Open Source
+     97.5s | id=True | headings=3 | leak=False | coverage=52% | words=894
+  -> generating subtopic 3/4: Pembaruan dan Pengelolaan Library
+     92.3s | id=True | headings=5 | leak=False | coverage=60% | words=850
+  -> generating subtopic 4/4: Integrasi Library dalam Aplikasi PHP
+     90.3s | id=True | headings=6 | leak=False | coverage=68% | words=873
+
+============================================================
+SUMMARY
+============================================================
+  n_total: 44
+  n_success: 44
+  n_failed: 0
+  pct_indonesian: 100.0
+  pct_scaffolding_leak_free: 100.0
+  mean_bold_headings_per_material: 5.591
+  mean_reference_utilization: 0.508
+  median_reference_utilization: 0.5
+  mean_generation_time_s: 121.664
+  median_generation_time_s: 120.7
+  mean_word_count: 960.477
+  mean_code_blocks_per_material: 2.682
+
+Per-item results -> E:\gen-mentor-app-fix\backend\scripts\eval_results.csv
+Summary stats     -> E:\gen-mentor-app-fix\backend\scripts\eval_summary.json
+Exception ignored while calling deallocator <function Bolt.__del__ at 0x00000217EAE3FC10>:
+Traceback (most recent call last):
+  File "E:\gen-mentor-app-fix\backend\venv\Lib\site-packages\neo4j\_sync\io\_bolt.py", line 199, in __del__
+  File "C:\Users\Zhan\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\coroutines.py", line 21, in iscoroutinefunction
+ImportError: sys.meta_path is None, Python is likely shutting down

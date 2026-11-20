@@ -265,7 +265,16 @@ class Neo4jService:
         return self._query_completeknowledgebase_questions()
 
     def get_existing_learning_materials(self, unit_code: str) -> List[str]:
-        """Reference materials in fix-knowledge-question-base for one competency unit."""
+        """Reference materials in fix-knowledge-question-base for one competency
+        unit, deduplicated - the same LearningMaterial text is frequently
+        reachable through more than one ElementCompetency/KnowledgeAndSkill/
+        Concept path (that's the graph structure, not bad data), so the raw
+        query result is full of exact-duplicate rows of the same text. Left
+        undeduplicated, MaterialsService.generate_learning_material's
+        character-budget cutoff saw mostly repeats of whichever text came
+        first and never reached the rest of the unit's real reference
+        material. Order is preserved (first occurrence, i.e. still
+        effectively lm.urutan order)."""
         records = self._run_query(
             """
             MATCH (cu:CompetencyUnit {kode: $kode})
@@ -280,7 +289,14 @@ class Neo4jService:
             purpose="generate_learning_material_examples",
             database="fix-knowledge-question-base",
         )
-        return [record["text"] for record in records if record.get("text")]
+        seen = set()
+        unique_texts = []
+        for record in records:
+            text = record.get("text")
+            if text and text not in seen:
+                seen.add(text)
+                unique_texts.append(text)
+        return unique_texts
 
     def get_recommended_materials(self, user_id: str) -> List[Dict]:
         """

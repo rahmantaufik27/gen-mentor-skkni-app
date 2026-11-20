@@ -31,6 +31,7 @@ from utils.quiz_api import (
     complete_quiz, get_quiz_history, get_unit_code_map
 )
 from utils.gating import get_learning_gating
+from utils.theme import render_exam_navigator, confirm_exam_action
 from datetime import datetime
 import json
 # from utils.auth_guard import require_authentication
@@ -56,6 +57,16 @@ def initialize_test_state():
         st.session_state.test_completed = False
     if "test_result" not in st.session_state:
         st.session_state.test_result = None
+    if "test_question_status" not in st.session_state:
+        st.session_state.test_question_status = {}
+    if "test_view_index" not in st.session_state:
+        st.session_state.test_view_index = None
+    if "test_question_answers" not in st.session_state:
+        # 0-based question index -> previously selected choice letter, so
+        # revisiting an answered question pre-selects what was chosen
+        # before (and lets the learner change it - submit_answer upserts
+        # by index server-side, so resubmitting never double-counts).
+        st.session_state.test_question_answers = {}
 
 
 def render_test_page():
@@ -176,96 +187,225 @@ def render_test_start():
 
 
 def render_test_progress():
-    """Render test in progress"""
+    """Render test in progress.
+
+    Same frontier/view-index/status pattern as Practice (see
+    components/practice.py::_render_practice_progress for the full
+    rationale) - duplicated here rather than shared, since Test's
+    backend calls (submit_answer/complete_quiz from utils/quiz_api) are
+    a different module than Practice's."""
     session_id = st.session_state.test_session_id
-    question_index = st.session_state.test_current_question
+    frontier_index = st.session_state.test_current_question
+    status = st.session_state.test_question_status
+
+    view_index = st.session_state.test_view_index
+    if view_index is None:
+        view_index = frontier_index
+    is_frontier = view_index == frontier_index
+    view_status = status.get(view_index)
+
+    # Cached per session so each rerun costs one get_question call, not two.
+    total_cache_key = f"test_total_questions_{session_id}"
+    if total_cache_key not in st.session_state:
+        probe = get_question(session_id, 0)
+        if probe.get("success"):
+            st.session_state[total_cache_key] = probe.get("total_questions", 36)
+    total_questions = st.session_state.get(total_cache_key, 36)
+
+    if is_frontier and frontier_index >= total_questions:
+        # Every question has been opened. Nothing finishes automatically -
+        # the learner ends the exam with "Submit All Answers" - so keep a
+        # question on screen: the first one still unanswered, else the last.
+        remaining = [i for i in range(total_questions) if status.get(i) != "answered"]
+        if remaining:
+            st.warning(
+                f"You've gone through all {total_questions} questions, but "
+                f"{len(remaining)} are still unanswered. Answer them from the "
+                "Question Navigator, or click Submit All Answers to finish now."
+            )
+            view_index = remaining[0]
+        else:
+            st.success(
+                "All questions answered. You can still review or change any answer - "
+                "click Submit All Answers when you're done."
+            )
+            view_index = total_questions - 1
+        view_status = status.get(view_index)
 
     # Get current question
-    question_result = get_question(session_id, question_index)
+    question_result = get_question(session_id, view_index)
     if not question_result.get("success"):
         st.error("Failed to load question")
         return
 
     # Question data is at root level of response (not nested under "question" key)
-    total_questions = question_result.get("total_questions", 36)
-    question_number = question_result.get("question_number", question_index + 1)
+    total_questions = question_result.get("total_questions", total_questions)
+    question_number = question_result.get("question_number", view_index + 1)
     question_text = question_result.get("question_text", "")
     unit = question_result.get("unit", "")
     bloom_level = question_result.get("bloom_level", "")
     choices = question_result.get("choices", [])
 
+    topbar_col, exit_col = st.columns([5, 1])
+    with topbar_col:
+        st.markdown(
+            f"""
+            <div class="gm-exam-topbar">
+                <div class="gm-exam-topbar-fields">
+                    <div class="gm-exam-field">
+                        <span class="gm-exam-field-k">Unit Competency</span>
+                        <span class="gm-exam-field-v">{unit}</span>
+                    </div>
+                    <div class="gm-exam-field">
+                        <span class="gm-exam-field-k">Bloom Level</span>
+                        <span class="gm-exam-level-chip">{bloom_level}</span>
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with exit_col:
+        answered_count = sum(1 for v in status.values() if v == "answered")
+        unanswered_count = total_questions - answered_count
+
+        def _exit_exam():
+            st.session_state.test_started = False
+            st.session_state.test_current_question = 0
+            st.session_state.test_session_id = None
+            st.session_state.test_question_status = {}
+            st.session_state.test_question_answers = {}
+            st.session_state.test_view_index = None
+            st.session_state.current_page = "data_analytics"
+            return None
+
+        def _submit_all():
+            result = complete_quiz(session_id)
+            if not result.get("success"):
+                return result.get("error") or "Could not submit your answers. Please try again."
+            st.session_state.test_completed = True
+            st.session_state.test_result = result
+            st.session_state.test_view_index = None
+            return None
+
+        if st.button("Exit Exam", use_container_width=True, key="test_exit_top"):
+            confirm_exam_action(
+                "Exit without scoring?",
+                "Nothing will be scored or saved, and you will need to start the Test again from question 1.",
+                "Yes, exit",
+                _exit_exam,
+            )
+        if st.button("Submit All Answers", use_container_width=True, key="test_submit_all_top"):
+            if unanswered_count:
+                detail = (
+                    f"You have answered {answered_count} of {total_questions} questions. "
+                    f"The {unanswered_count} unanswered question(s) will be scored as incorrect."
+                )
+            else:
+                detail = f"You have answered all {total_questions} questions."
+            confirm_exam_action(
+                "Submit all answers?",
+                detail + " Your Test will be scored now and you can't change answers afterward. The Test can only be taken once, so this result is final.",
+                "Yes, submit",
+                _submit_all,
+            )
+
     # Progress bar
-    progress_percentage = question_number / total_questions
-    st.progress(progress_percentage, text=f"Progress: {question_number}/{total_questions} questions")
-
-    st.divider()
-
-    # Display question
-    st.subheader(f"Question {question_number} of {total_questions}")
-
-    # Unit and Bloom info
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write(f"**Unit:** {unit}")
-    with col2:
-        st.write(f"**Bloom Level:** {bloom_level}")
-
-    st.divider()
-
-    st.write(f"### {question_text}")
-
-    # Answer options
-    if not choices:
-        st.warning("No answer choices available")
-        return
-
-    # Create choice text with letters
-    choice_options = [f"{choice.get('id')}. {choice.get('text')}" for choice in choices]
-
-    # Store selected answer
-    selected_text = st.radio(
-        label="Select your answer:",
-        options=choice_options,
-        key=f"test_question_{question_number}"
+    progress_percentage = min(frontier_index, total_questions) / total_questions
+    st.markdown(
+        f"""
+        <div class="gm-exam-progress-wrap">
+            <div class="gm-exam-progress-label">Question {question_number} of {total_questions}</div>
+            <div class="gm-exam-progress-track">
+                <div class="gm-exam-progress-fill" style="width:{progress_percentage * 100:.1f}%"></div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
-    # Get choice ID from selection
-    if selected_text:
-        selected_choice_id = selected_text.split(".")[0]  # Extract letter (A, B, C, D)
-
-        st.divider()
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            if st.button("Submit Answer", use_container_width=True, type="primary"):
-                submit_result = submit_answer(
-                    session_id,
-                    question_index,
-                    selected_choice_id
-                )
-
-                if submit_result.get("success"):
-                    progress_data = submit_result.get("progress", {})
-
-                    if progress_data.get("answered") >= total_questions:
-                        complete_result = complete_quiz(session_id)
-                        if complete_result.get("success"):
-                            st.session_state.test_completed = True
-                            st.session_state.test_result = complete_result
-                            st.rerun()
-                    else:
-                        st.session_state.test_current_question += 1
-                        st.rerun()
-                else:
-                    st.error(f"Failed to submit answer: {submit_result.get('error')}")
-
-        with col2:
-            if st.button("Exit Test", use_container_width=True):
-                st.session_state.test_started = False
-                st.session_state.test_current_question = 0
-                st.session_state.test_session_id = None
+    if not is_frontier:
+        note = "You already answered this question - you can change your answer below." if view_status == "answered" else "You skipped this question earlier. You can answer it now."
+        back_col1, back_col2 = st.columns([4, 1])
+        with back_col1:
+            st.info(note)
+        with back_col2:
+            if st.button("Back to Current", use_container_width=True, key="test_back_to_current"):
+                st.session_state.test_view_index = None
                 st.rerun()
+
+    main_col, nav_col = st.columns([3, 1.1])
+
+    with main_col:
+        with st.container(key="gm_exam_question_card"):
+            if view_status == "answered":
+                st.markdown('<span class="gm-question-answered-marker"></span>', unsafe_allow_html=True)
+            st.markdown(f"**Question {question_number}**")
+            st.write(f"### {question_text}")
+
+            # Answer options
+            if not choices:
+                st.warning("No answer choices available")
+                return
+
+            # Create choice text with letters
+            choice_options = [f"{choice.get('id')}. {choice.get('text')}" for choice in choices]
+
+            # Pre-select whatever was previously chosen (if anything), so
+            # revisiting an answered question shows - and lets the learner
+            # change - their existing answer instead of starting blank.
+            previous_choice = st.session_state.test_question_answers.get(view_index)
+            preselect_idx = None
+            if previous_choice:
+                for i, opt in enumerate(choice_options):
+                    if opt.split(".")[0] == previous_choice:
+                        preselect_idx = i
+                        break
+
+            # Store selected answer
+            selected_text = st.radio(
+                label="Select your answer:",
+                options=choice_options,
+                key=f"test_question_{view_index}",
+                index=preselect_idx,
+            )
+
+            st.divider()
+            col1, col2 = st.columns(2)
+
+            with col1:
+                submit_disabled = not selected_text
+                if st.button("Submit Answer", use_container_width=True, type="primary", disabled=submit_disabled):
+                    selected_choice_id = selected_text.split(".")[0]  # Extract letter (A, B, C, D)
+                    submit_result = submit_answer(
+                        session_id,
+                        view_index,
+                        selected_choice_id
+                    )
+
+                    if submit_result.get("success"):
+                        status[view_index] = "answered"
+                        st.session_state.test_question_answers[view_index] = selected_choice_id
+                        if is_frontier:
+                            st.session_state.test_current_question = frontier_index + 1
+                        st.session_state.test_view_index = None
+                        st.rerun()
+                    else:
+                        st.error(f"Failed to submit answer: {submit_result.get('error')}")
+
+            with col2:
+                if view_status != "answered" and st.button("Skip", use_container_width=True, key="test_skip_btn"):
+                    status[view_index] = "skipped"
+                    if is_frontier:
+                        st.session_state.test_current_question = frontier_index + 1
+                    st.session_state.test_view_index = None
+                    st.rerun()
+
+    with nav_col:
+        render_exam_navigator(
+            total_questions, status, frontier_index + 1, view_index + 1,
+            key_prefix="test", view_state_key="test_view_index",
+        )
 
 
 def render_test_results():
@@ -356,7 +496,7 @@ def render_test_results():
     if "test_show_review" not in st.session_state:
         st.session_state.test_show_review = False
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         if st.button("Go to Practice", use_container_width=True, type="primary"):
@@ -365,6 +505,9 @@ def render_test_results():
             st.session_state.test_session_id = None
             st.session_state.test_completed = False
             st.session_state.test_result = None
+            st.session_state.test_question_status = {}
+            st.session_state.test_question_answers = {}
+            st.session_state.test_view_index = None
             st.session_state.current_page = "practice"
             st.rerun()
 
@@ -381,7 +524,23 @@ def render_test_results():
             st.session_state.test_session_id = None
             st.session_state.test_completed = False
             st.session_state.test_result = None
+            st.session_state.test_question_status = {}
+            st.session_state.test_question_answers = {}
+            st.session_state.test_view_index = None
             st.session_state.current_page = "profile"
+            st.rerun()
+
+    with col4:
+        if st.button("Exit Exam", use_container_width=True):
+            st.session_state.test_started = False
+            st.session_state.test_current_question = 0
+            st.session_state.test_session_id = None
+            st.session_state.test_completed = False
+            st.session_state.test_result = None
+            st.session_state.test_question_status = {}
+            st.session_state.test_question_answers = {}
+            st.session_state.test_view_index = None
+            st.session_state.current_page = "data_analytics"
             st.rerun()
 
     if st.session_state.test_show_review:
